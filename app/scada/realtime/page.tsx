@@ -1,9 +1,71 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
-import { Activity, Thermometer, Droplets, Gauge, Settings2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Activity, Thermometer, Droplets, Gauge, Settings2, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+type Tag = { id: string; name: string; value: number; unit: string; sp: number; quality: string; type: string };
+
+function SetpointConfirmModal({
+  tag,
+  newValue,
+  unitId,
+  onConfirm,
+  onCancel
+}: {
+  tag: Tag;
+  newValue: string;
+  unitId: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200">
+        <div className="p-4 border-b border-slate-100 bg-slate-50">
+          <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+            <Gauge size={18} className="text-teal-600" />
+            Confirm Setpoint Change
+          </h3>
+        </div>
+        <div className="p-4 space-y-4">
+          <p className="text-sm text-slate-600">
+            You are about to change the setpoint for <strong>{tag.name}</strong> on <strong>{unitId}</strong>.
+          </p>
+          <div className="bg-slate-50 rounded-lg p-3 font-mono text-sm">
+            <div className="flex justify-between text-slate-600">
+              <span>Current setpoint:</span>
+              <span>{tag.sp} {tag.unit}</span>
+            </div>
+            <div className="flex justify-between font-semibold text-teal-700 mt-1">
+              <span>New setpoint:</span>
+              <span>{newValue} {tag.unit}</span>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500 flex items-start gap-2">
+            <Info size={14} className="flex-shrink-0 mt-0.5" />
+            This value will be saved to the database and used as the target for process control.
+          </p>
+        </div>
+        <div className="p-4 flex justify-end gap-2 bg-slate-50 border-t border-slate-100">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-medium transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition-colors"
+          >
+            Apply Setpoint
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Mock hook for live data with WebSocket demonstration
 function useLiveTags(unitId: string) {
@@ -85,6 +147,9 @@ export default function RealTimePage() {
   const [setpoints, setSetpoints] = useState<Record<string, string>>({});
   const [savedSetpoints, setSavedSetpoints] = useState<Record<string, number>>({});
   const [spStatus, setSpStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [confirmModal, setConfirmModal] = useState<{ tag: Tag; value: string } | null>(null);
+  const [lastChangedTag, setLastChangedTag] = useState<string | null>(null);
+  const prevTagsRef = useRef<typeof tags>([]);
 
   // Load persisted setpoints from database when unit changes
   useEffect(() => {
@@ -98,24 +163,31 @@ export default function RealTimePage() {
     setSetpoints(prev => ({ ...prev, [id]: value }));
   };
 
-  const applySetpoint = async (id: string) => {
+  const openConfirm = (id: string) => {
     const val = setpoints[id];
     if (!val) return;
-    const tag = tags.find(t => t.id === id);
+    const tag = tagsWithSp.find(t => t.id === id);
     if (!tag) return;
-    if (!confirm(`Apply setpoint for ${tag.name} (${id}) to ${val} ${tag.unit}?`)) return;
+    setConfirmModal({ tag, value: val });
+  };
 
+  const applySetpoint = async () => {
+    if (!confirmModal) return;
+    const { tag, value: val } = confirmModal;
+    setConfirmModal(null);
     setSpStatus('saving');
     try {
       const res = await fetch('/api/scada/setpoints', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ unitId: selectedUnit, tagId: id, value: parseFloat(val) })
+        body: JSON.stringify({ unitId: selectedUnit, tagId: tag.id, value: parseFloat(val) })
       });
       if (res.ok) {
         const numVal = parseFloat(val);
-        setSavedSetpoints(prev => ({ ...prev, [id]: numVal }));
-        setSetpoints(prev => ({ ...prev, [id]: '' }));
+        setSavedSetpoints(prev => ({ ...prev, [tag.id]: numVal }));
+        setSetpoints(prev => ({ ...prev, [tag.id]: '' }));
+        setLastChangedTag(tag.id);
+        setTimeout(() => setLastChangedTag(null), 1500);
         setSpStatus('saved');
         setTimeout(() => setSpStatus('idle'), 2000);
       } else {
@@ -135,6 +207,18 @@ export default function RealTimePage() {
     ...t,
     sp: savedSetpoints[t.id] ?? t.sp
   }));
+
+  // Track value changes for animation
+  useEffect(() => {
+    tags.forEach(t => {
+      const prev = prevTagsRef.current.find(p => p.id === t.id);
+      if (prev && Math.abs(prev.value - t.value) > 0.01) {
+        setLastChangedTag(t.id);
+        setTimeout(() => setLastChangedTag(null), 800);
+      }
+    });
+    prevTagsRef.current = [...tags];
+  }, [tags]);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -195,42 +279,85 @@ export default function RealTimePage() {
               <span className="text-xs font-normal text-slate-500">(live values)</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex items-center justify-center bg-slate-50 border-t border-slate-100 min-h-[400px] relative">
-            {/* Simple SVG Mimic representation */}
-            <div className="relative w-64 h-80 border-4 border-slate-400 rounded-b-full rounded-t-lg bg-slate-100 flex flex-col items-center justify-end overflow-hidden shadow-inner">
-              {/* Level indicator */}
+          <CardContent className="flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 border-t border-slate-100 min-h-[400px] relative">
+            {/* Interactive Mimic */}
+            <div className="relative w-64 h-80 border-4 border-slate-400 rounded-b-full rounded-t-lg bg-slate-100 flex flex-col items-center justify-end overflow-hidden shadow-inner ring-2 ring-slate-200/50 transition-shadow hover:ring-teal-200/50">
+              {/* Level indicator - animated fill */}
               <div 
-                className="w-full bg-teal-200/50 transition-all duration-1000 ease-in-out absolute bottom-0"
-                style={{ height: `${tags.find(t => t.type === 'level')?.value || 0}%` }}
+                className={cn(
+                  "w-full bg-gradient-to-t from-teal-400/80 to-teal-300/60 transition-all duration-700 ease-out absolute bottom-0",
+                  lastChangedTag === 'L101' && "animate-pulse"
+                )}
+                style={{ height: `${Math.min(100, Math.max(0, tags.find(t => t.type === 'level')?.value || 0))}%` }}
+                title="Level - updates with live tag value"
               >
-                <div className="w-full h-2 bg-teal-400/50 animate-pulse"></div>
+                <div className="w-full h-2 bg-teal-400/70 animate-pulse" />
               </div>
               
-              {/* Agitator */}
-              <div className="absolute top-0 w-2 h-full bg-slate-400 z-10"></div>
-              <div className="absolute top-1/2 w-32 h-4 bg-slate-500 z-10 rounded-full animate-spin" style={{ animationDuration: `${60 / (tags.find(t => t.type === 'speed')?.value || 60)}s` }}></div>
-              <div className="absolute top-3/4 w-32 h-4 bg-slate-500 z-10 rounded-full animate-spin" style={{ animationDuration: `${60 / (tags.find(t => t.type === 'speed')?.value || 60)}s` }}></div>
+              {/* Agitator - speed affects rotation */}
+              <div className="absolute top-0 w-2 h-full bg-slate-400 z-10" title="Agitator" />
+              <div 
+                className={cn(
+                  "absolute top-1/2 w-32 h-4 bg-slate-500 z-10 rounded-full",
+                  lastChangedTag === 'S101' && "ring-2 ring-teal-400"
+                )}
+                style={{
+                  animation: `spin ${60 / (tags.find(t => t.type === 'speed')?.value || 60)}s linear infinite`
+                }}
+              />
+              <div 
+                className="absolute top-3/4 w-32 h-4 bg-slate-600/80 z-10 rounded-full"
+                style={{
+                  animation: `spin ${(60 / (tags.find(t => t.type === 'speed')?.value || 60)) * 1.2}s linear infinite reverse`
+                }}
+              />
               
-              {/* Values overlay */}
-              <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-2 py-1 rounded shadow-sm text-xs font-mono font-bold text-slate-700 z-20 border border-slate-200">
+              {/* Values overlay - pulse when changed */}
+              <div 
+                className={cn(
+                  "absolute top-4 left-4 bg-white/95 backdrop-blur px-2 py-1 rounded shadow-sm text-xs font-mono font-bold text-slate-700 z-20 border border-slate-200 transition-all",
+                  lastChangedTag === 'T101' && "ring-2 ring-orange-400 scale-105"
+                )}
+                title="Reactor Temperature"
+              >
                 {tags.find(t => t.type === 'temp')?.value.toFixed(1)} °C
               </div>
-              <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-2 py-1 rounded shadow-sm text-xs font-mono font-bold text-slate-700 z-20 border border-slate-200">
+              <div 
+                className={cn(
+                  "absolute top-4 right-4 bg-white/95 backdrop-blur px-2 py-1 rounded shadow-sm text-xs font-mono font-bold text-slate-700 z-20 border border-slate-200 transition-all",
+                  lastChangedTag === 'P101' && "ring-2 ring-blue-400 scale-105"
+                )}
+                title="Reactor Pressure"
+              >
                 {tags.find(t => t.type === 'pressure')?.value.toFixed(2)} bar
               </div>
             </div>
             
-            {/* Pipes and valves (simplified) */}
-            <div className="absolute top-10 left-10 flex items-center">
-              <div className="w-24 h-4 bg-slate-300 relative">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-10 bg-emerald-500 rounded-sm flex items-center justify-center shadow-sm">
-                  <div className="w-4 h-1 bg-white"></div>
+            {/* Feed flow - interactive slider in mock mode */}
+            <div className="absolute top-10 left-10 flex flex-col gap-2" title="Feed Flow - simulated control">
+              <div className="w-24 h-4 bg-slate-300 rounded relative overflow-hidden group">
+                <div 
+                  className="absolute inset-0 bg-emerald-500/30 transition-all"
+                  style={{ width: `${Math.min(100, (tags.find(t => t.type === 'flow')?.value || 0) / 150 * 100)}%` }}
+                />
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-10 bg-emerald-500 rounded-sm flex items-center justify-center shadow-sm group-hover:bg-emerald-600 transition-colors">
+                  <div className="w-4 h-1 bg-white" />
                 </div>
               </div>
-              <div className="bg-white/90 backdrop-blur px-2 py-1 rounded shadow-sm text-xs font-mono font-bold text-slate-700 ml-2 border border-slate-200">
+              <div className={cn(
+                "bg-white/95 backdrop-blur px-2 py-1 rounded shadow-sm text-xs font-mono font-bold text-slate-700 border border-slate-200 transition-all",
+                lastChangedTag === 'F101' && "ring-2 ring-indigo-400"
+              )}>
                 {tags.find(t => t.type === 'flow')?.value.toFixed(1)} L/h
               </div>
             </div>
+            
+            {/* Mock mode badge */}
+            {wsStatus === 'mock' && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 bg-amber-100/90 text-amber-800 text-xs font-medium rounded-full border border-amber-200">
+                Simulated data • Values drift randomly
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -241,7 +368,13 @@ export default function RealTimePage() {
           </CardHeader>
           <div className="divide-y divide-slate-100">
             {tagsWithSp.map(tag => (
-              <div key={tag.id} className="p-4 hover:bg-slate-50 transition-colors">
+              <div 
+                key={tag.id} 
+                className={cn(
+                  "p-4 hover:bg-slate-50 transition-all duration-300",
+                  lastChangedTag === tag.id && "bg-teal-50/70 ring-1 ring-teal-200 rounded-lg"
+                )}
+              >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     {getIcon(tag.type)}
@@ -258,7 +391,12 @@ export default function RealTimePage() {
                 
                 <div className="flex items-end justify-between">
                   <div>
-                    <span className="text-2xl font-bold font-mono text-slate-900">{tag.value.toFixed(1)}</span>
+                    <span className={cn(
+                      "text-2xl font-bold font-mono text-slate-900 transition-all",
+                      lastChangedTag === tag.id && "text-teal-700"
+                    )}>
+                      {tag.value.toFixed(1)}
+                    </span>
                     <span className="text-sm text-slate-500 ml-1">{tag.unit}</span>
                   </div>
                   <div className="text-right">
@@ -272,7 +410,7 @@ export default function RealTimePage() {
                         onChange={(e) => handleSpChange(tag.id, e.target.value)}
                       />
                       <button 
-                        onClick={() => applySetpoint(tag.id)}
+                        onClick={() => openConfirm(tag.id)}
                         disabled={!setpoints[tag.id] || spStatus === 'saving'}
                         className="px-2 py-1 bg-slate-800 text-white text-xs rounded hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
@@ -286,6 +424,16 @@ export default function RealTimePage() {
           </div>
         </Card>
       </div>
+
+      {confirmModal && (
+        <SetpointConfirmModal
+          tag={confirmModal.tag}
+          newValue={confirmModal.value}
+          unitId={selectedUnit}
+          onConfirm={() => applySetpoint()}
+          onCancel={() => setConfirmModal(null)}
+        />
+      )}
     </div>
   );
 }
