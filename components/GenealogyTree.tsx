@@ -1,5 +1,5 @@
 import { Package, ArrowDown, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 export function GenealogyTree({ batch }: { batch: any }) {

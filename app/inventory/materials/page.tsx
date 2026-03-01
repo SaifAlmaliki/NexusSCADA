@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardHeader } from '@/components/Card';
 import { Search, Filter, Plus, Edit, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 const mockMaterials = [
   { id: 'MAT-101', name: 'Polymer Base Alpha', stock: 8500, unit: 'L', location: 'Tank T-101', reorderPoint: 2000, status: 'normal' },

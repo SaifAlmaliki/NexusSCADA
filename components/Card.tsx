@@ -1,4 +1,4 @@
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 export function Card({ className, children }: { className?: string, children: React.ReactNode }) {
   return (

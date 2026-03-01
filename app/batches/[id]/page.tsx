@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Package, RefreshCw, Play, Pause, Square, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { BatchStatusBadge } from '@/components/BatchStatusBadge';
 import { GenealogyTree } from '@/components/GenealogyTree';

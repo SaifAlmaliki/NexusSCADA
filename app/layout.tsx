@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import './globals.css'; // Global styles
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { AppLayout } from '@/components/AppLayout';
@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   title: 'Nexus SCADA Dashboard',
   description: 'A comprehensive manufacturing, SCADA, and production management dashboard.',
   manifest: '/manifest.json',
+};
+
+export const viewport: Viewport = {
   themeColor: '#0f172a',
 };
 

@@ -13,7 +13,7 @@ import {
   Loader2,
   FolderOpen
 } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 type Site = {
   id: string;

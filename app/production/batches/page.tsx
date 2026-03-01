@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardHeader, CardTitle } from '@/components/Card';
 import { Search, Filter, Eye, Activity, GitMerge, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 const mockBatches = [

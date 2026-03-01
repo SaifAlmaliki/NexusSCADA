@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { RefreshCw, CalendarClock, AlertTriangle, CheckCircle2, Search, ArrowRight, BrainCircuit } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 // Mock data for initial render
 const mockSyncLogs = [

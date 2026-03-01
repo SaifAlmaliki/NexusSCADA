@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Search, Filter, Server, Activity, RefreshCw, Settings, AlertCircle, CheckCircle2, Cpu, HardDrive } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 const mockFleet = [
   { id: 'edge-ny-01', plant: 'Plant Alpha (NY)', status: 'online', lastSync: 'Just now', cpu: 45, ram: 120, totalRam: 150, uptime: '45d 12h', version: 'v2.1.4' },

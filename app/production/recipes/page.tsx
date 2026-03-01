@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardHeader } from '@/components/Card';
 import { Search, Filter, Plus, Edit, Eye, Archive, CheckCircle2, History } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 const mockRecipes = [
   { id: 'RCP-001', name: 'Polymer A', version: 2, productType: 'Resin', lastModified: '2023-10-20', status: 'active' },

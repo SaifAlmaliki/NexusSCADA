@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Package, ArrowRight, CheckCircle2, AlertTriangle, Search, Factory } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 export default async function ForwardTraceabilityPage({ params }: { params: { lotNumber: string } }) {
