@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import { 
   LayoutDashboard, 
   Factory, 
@@ -79,7 +78,7 @@ const navConfig = [
   },
   { name: 'Documents', href: '/documents', icon: FileText },
   { name: 'Edge Fleet', href: '/fleet', icon: Server },
-  { name: 'Users & Roles', href: '/users', icon: Users, roles: ['ADMIN', 'MANAGER'] },
+  { name: 'Users & Roles', href: '/users', icon: Users },
   { 
     name: 'Settings', 
     icon: Settings,
@@ -93,15 +92,6 @@ const navConfig = [
 
 export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCollapsed: (val: boolean) => void }) {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const userRole = (session?.user as { role?: string } | undefined)?.role;
-
-  const visibleNav = navConfig.filter((item) => {
-    const allowedRoles = (item as { roles?: string[] }).roles;
-    if (!allowedRoles) return true;
-    return userRole && allowedRoles.includes(userRole);
-  });
-
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     Production: true,
     SCADA: true,
@@ -126,7 +116,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
       
       <div className="flex-1 overflow-y-auto py-4 scrollbar-thin scrollbar-thumb-slate-700">
         <nav className="space-y-1 px-2">
-          {visibleNav.map((item) => {
+          {navConfig.map((item) => {
             const isActive = item.href === pathname || (item.children && item.children.some(child => pathname.startsWith(child.href)));
             
             if (item.children) {
