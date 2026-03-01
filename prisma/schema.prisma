@@ -10,15 +10,16 @@ datasource db {
 // --- ISA-95 Equipment Hierarchy ---
 
 model Site {
-  id          String     @id @default(uuid())
-  name        String     @unique
-  location    String?
-  areas       Area[]
-  documents   Document[]
-  users       User[]
-  batchConfigs BatchIntegrationConfig[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id                 String              @id @default(uuid())
+  name               String              @unique
+  location           String?
+  areas              Area[]
+  documents          Document[]
+  users              User[]
+  batchConfigs       BatchIntegrationConfig[]
+  connectorEndpoints  ConnectorEndpoint[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model Document {
@@ -35,45 +36,48 @@ model Document {
 }
 
 model Area {
-  id          String   @id @default(uuid())
-  name        String
-  siteId      String
-  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  lines       Line[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String              @id @default(uuid())
+  name               String
+  siteId             String
+  site               Site                 @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  lines              Line[]
+  connectorEndpoints ConnectorEndpoint[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@unique([name, siteId])
 }
 
 model Line {
-  id          String      @id @default(uuid())
-  name        String
-  areaId      String
-  area        Area        @relation(fields: [areaId], references: [id], onDelete: Cascade)
-  equipment   Equipment[]
-  workOrders  WorkOrder[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id                 String              @id @default(uuid())
+  name               String
+  areaId             String
+  area               Area                @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  equipment          Equipment[]
+  workOrders         WorkOrder[]
+  connectorEndpoints ConnectorEndpoint[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@unique([name, areaId])
 }
 
 model Equipment {
-  id              String          @id @default(uuid())
+  id              String              @id @default(uuid())
   name            String
-  type            String          // e.g., "Reactor", "Mixer", "Conveyor"
-  status          EquipmentStatus @default(IDLE)
-  healthScore     Float?          @default(100.0) // 0-100 health index based on ML
-  mtbf            Float?          // Mean Time Between Failures in hours
+  type            String              // e.g., "Reactor", "Mixer", "Conveyor"
+  status          EquipmentStatus     @default(IDLE)
+  healthScore     Float?              @default(100.0) // 0-100 health index based on ML
+  mtbf            Float?              // Mean Time Between Failures in hours
   lastMaintenance DateTime?
   nextMaintenance DateTime?
   lineId          String
-  line            Line            @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  line            Line                @relation(fields: [lineId], references: [id], onDelete: Cascade)
   downtimes       DowntimeEvent[]
   anomalies       Anomaly[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  connectorEndpoints ConnectorEndpoint[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@unique([name, lineId])
 }
@@ -107,6 +111,61 @@ model ScadaSetpoint {
   updatedAt DateTime @updatedAt
 
   @@unique([unitId, tagId])
+}
+
+// --- Industrial Connector Configuration ---
+
+enum ConnectorProtocol {
+  OPC_UA
+  MODBUS_TCP
+  S7
+}
+
+model ConnectorEndpoint {
+  id              String            @id @default(uuid())
+  name            String
+  protocol        ConnectorProtocol
+  enabled         Boolean           @default(true)
+  siteId          String
+  site            Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  areaId          String?
+  area            Area?             @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  lineId          String?
+  line            Line?             @relation(fields: [lineId], references: [id], onDelete: SetNull)
+  equipmentId     String?
+  equipment       Equipment?        @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+  config          Json              // { endpoint, host, port, unitId, rack, slot, etc. }
+  pollingInterval Int               @default(1000)
+  tags            ConnectorTag[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model ConnectorTag {
+  id         String            @id @default(uuid())
+  endpointId String
+  endpoint   ConnectorEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  sourceId   String            // OPC nodeId, Modbus addr, S7 DB address
+  mqttTopic  String            // Full topic or template: plant/{site}/{equipment}/{tag}
+  name       String            // Display name
+  dataType   String?           // REAL, INT, BOOL, etc.
+  writable   Boolean           @default(false)
+  unit       String?           // e.g., "°C", "bar", "%"
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@unique([endpointId, sourceId])
+}
+
+// --- Protocol Bridge Configuration ---
+
+model BridgeConfig {
+  id        String   @id @default(uuid())
+  type      String   @unique // "OPC_UA_SERVER" | "MODBUS_SLAVE"
+  enabled   Boolean  @default(false)
+  config    Json     // { port, registerMapping, etc. }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // --- Recipes ---
@@ -354,19 +413,26 @@ model Signature {
 // --- Users & Roles ---
 
 model User {
-  id          String   @id @default(uuid()) // Maps to Supabase Auth UID or local user ID
-  email       String   @unique
+  id          String     @id @default(uuid()) // Maps to Supabase Auth UID or local user ID
+  email       String     @unique
   name        String
-  password    String?  // Added for local authentication
-  role        Role     @default(OPERATOR)
-  siteId      String?  // Optional for admins, required for site-specific users
-  site        Site?    @relation(fields: [siteId], references: [id])
+  password    String?    // Added for local authentication
+  role        Role       @default(OPERATOR)
+  status      UserStatus @default(ACTIVE)
+  siteId      String?    // Optional for admins, required for site-specific users
+  site        Site?      @relation(fields: [siteId], references: [id])
+  lastLoginAt DateTime?
   inspections QualityInspection[]
   syncQueue   OfflineSyncQueue[]
   signatures  Signature[]
   batches     Batch[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
 }
 
 enum Role {

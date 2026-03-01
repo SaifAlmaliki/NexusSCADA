@@ -1,27 +1,30 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { ClipboardList, Play, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { BatchStatusBadge } from '@/components/BatchStatusBadge';
 
-export default function OrderDetailsPage({ params }: { params: { id: string } }) {
+export default function OrderDetailsPage() {
+  const params = useParams();
+  const id = params.id as string;
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [dispatching, setDispatching] = useState(false);
 
   useEffect(() => {
     fetchOrder();
-  }, [params.id]);
+  }, [id]);
 
   const fetchOrder = async () => {
     try {
       const res = await fetch(`/api/orders`);
       if (res.ok) {
         const orders = await res.json();
-        const found = orders.find((o: any) => o.id === params.id);
+        const found = orders.find((o: any) => o.id === id);
         setOrder(found);
       }
     } catch (error) {
@@ -34,7 +37,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
   const handleDispatch = async () => {
     setDispatching(true);
     try {
-      const res = await fetch(`/api/orders/${params.id}/dispatch`, { method: 'POST' });
+      const res = await fetch(`/api/orders/${id}/dispatch`, { method: 'POST' });
       if (res.ok) {
         alert('Order dispatched and batch created successfully');
         fetchOrder();

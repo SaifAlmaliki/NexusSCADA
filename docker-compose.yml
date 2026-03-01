@@ -132,9 +132,11 @@ services:
     container_name: uns-connector
     environment:
       - MQTT_URL=mqtt://monstermq:1883
+      - CONFIG_API_URL=http://frontend:3000
       - SIMULATION_MODE=true # Set to false to connect to real PLCs
     depends_on:
       - monstermq
+      - frontend
     networks:
       - uns-network
     restart: unless-stopped

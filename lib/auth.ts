@@ -26,11 +26,20 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        if (user.status === "DISABLED") {
+          return null;
+        }
+
         const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
         if (!isPasswordValid) {
           return null;
         }
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        });
 
         return {
           id: user.id,

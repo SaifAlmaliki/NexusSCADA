@@ -1,12 +1,30 @@
 export type UserRole = 'operator' | 'supervisor' | 'engineer' | 'admin';
 
+export type PrismaRole = 'ADMIN' | 'MANAGER' | 'ENGINEER' | 'OPERATOR';
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  roles: UserRole[];
-  status: 'active' | 'disabled';
-  lastLoginAt?: string;
+  role: PrismaRole;
+  status: 'ACTIVE' | 'DISABLED';
+  lastLoginAt?: string | null;
+  siteId?: string | null;
+  site?: { id: string; name: string; location?: string | null } | null;
+}
+
+export function roleToDisplayRole(role: PrismaRole): UserRole {
+  const map: Record<PrismaRole, UserRole> = {
+    ADMIN: 'admin',
+    MANAGER: 'supervisor',
+    ENGINEER: 'engineer',
+    OPERATOR: 'operator',
+  };
+  return map[role];
+}
+
+export function statusToDisplay(status: 'ACTIVE' | 'DISABLED'): 'active' | 'disabled' {
+  return status === 'ACTIVE' ? 'active' : 'disabled';
 }
 
 export interface ProductionOrder {

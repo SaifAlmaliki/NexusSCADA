@@ -35,7 +35,7 @@ export default function DigitalTwinPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setTags(prev => prev.map(tag => {
-        if (tag.type === 'Float' || tag.type === 'Int32') {
+        if ((tag.type === 'Float' || tag.type === 'Int32') && typeof tag.value === 'number') {
           const variation = (Math.random() * 2 - 1) * (tag.value * 0.02); // 2% variation
           return { ...tag, value: Number((tag.value + variation).toFixed(2)) };
         }
@@ -93,26 +93,26 @@ export default function DigitalTwinPage() {
               {/* Level indicator */}
               <div 
                 className="w-full bg-teal-500/20 transition-all duration-1000 ease-in-out absolute bottom-0 border-t border-teal-500/50"
-                style={{ height: `${tags.find(t => t.name === 'Level')?.value || 0}%` }}
+                style={{ height: `${Number(tags.find(t => t.name === 'Level')?.value ?? 0)}%` }}
               >
                 <div className="w-full h-1 bg-teal-400/50 animate-pulse"></div>
               </div>
               
               {/* Agitator */}
               <div className="absolute top-0 w-1 h-full bg-slate-600 z-10"></div>
-              <div className="absolute top-1/2 w-40 h-2 bg-slate-500 z-10 rounded-full animate-spin" style={{ animationDuration: `${60 / (tags.find(t => t.name === 'Agitator Speed')?.value || 60)}s` }}></div>
+              <div className="absolute top-1/2 w-40 h-2 bg-slate-500 z-10 rounded-full animate-spin" style={{ animationDuration: `${60 / (Number(tags.find(t => t.name === 'Agitator Speed')?.value) || 60)}s` }}></div>
               
               {/* Data Overlays directly on the "3D" model */}
               <div className="absolute -left-32 top-1/4 bg-slate-800/80 backdrop-blur border border-slate-700 px-3 py-2 rounded-lg shadow-xl text-xs font-mono text-slate-300 z-20 flex items-center gap-2">
                 <Thermometer size={14} className="text-orange-400" />
-                <span>{tags.find(t => t.name === 'Temperature')?.value.toFixed(1)} °C</span>
+                <span>{Number(tags.find(t => t.name === 'Temperature')?.value ?? 0).toFixed(1)} °C</span>
                 {/* Connection line */}
                 <div className="absolute top-1/2 -right-12 w-12 h-px bg-slate-600"></div>
               </div>
 
               <div className="absolute -right-32 top-1/3 bg-slate-800/80 backdrop-blur border border-slate-700 px-3 py-2 rounded-lg shadow-xl text-xs font-mono text-slate-300 z-20 flex items-center gap-2">
                 <Gauge size={14} className="text-blue-400" />
-                <span>{tags.find(t => t.name === 'Pressure')?.value.toFixed(2)} bar</span>
+                <span>{Number(tags.find(t => t.name === 'Pressure')?.value ?? 0).toFixed(2)} bar</span>
                 {/* Connection line */}
                 <div className="absolute top-1/2 -left-12 w-12 h-px bg-slate-600"></div>
               </div>

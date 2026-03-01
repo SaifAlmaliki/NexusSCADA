@@ -142,8 +142,33 @@ function useLiveTags(unitId: string) {
 }
 
 export default function RealTimePage() {
-  const [selectedUnit, setSelectedUnit] = useState('R-101');
+  const [units, setUnits] = useState<Array<{ id: string; name: string }>>([
+    { id: 'reactor1', name: 'Reactor 101' },
+    { id: 'R-102', name: 'Reactor 102' },
+    { id: 'D-201', name: 'Distillation 201' },
+  ]);
+  const [selectedUnit, setSelectedUnit] = useState('reactor1');
   const { tags, wsStatus } = useLiveTags(selectedUnit);
+
+  useEffect(() => {
+    fetch('/api/connector/config')
+      .then((r) => r.json())
+      .then((data) => {
+        const equipmentNames = new Map<string, string>();
+        for (const ep of data.endpoints || []) {
+          const eq = ep.hierarchy?.equipmentName;
+          if (eq) {
+            const slug = eq.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            equipmentNames.set(slug, eq);
+          }
+        }
+        if (equipmentNames.size > 0) {
+          setUnits(Array.from(equipmentNames.entries()).map(([id, name]) => ({ id, name })));
+          setSelectedUnit((prev) => (equipmentNames.has(prev) ? prev : Array.from(equipmentNames.keys())[0]));
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [setpoints, setSetpoints] = useState<Record<string, string>>({});
   const [savedSetpoints, setSavedSetpoints] = useState<Record<string, number>>({});
   const [spStatus, setSpStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -176,20 +201,26 @@ export default function RealTimePage() {
     const { tag, value: val } = confirmModal;
     setConfirmModal(null);
     setSpStatus('saving');
+    const numVal = parseFloat(val);
     try {
       const res = await fetch('/api/scada/setpoints', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ unitId: selectedUnit, tagId: tag.id, value: parseFloat(val) })
+        body: JSON.stringify({ unitId: selectedUnit, tagId: tag.id, value: numVal })
       });
       if (res.ok) {
-        const numVal = parseFloat(val);
         setSavedSetpoints(prev => ({ ...prev, [tag.id]: numVal }));
         setSetpoints(prev => ({ ...prev, [tag.id]: '' }));
         setLastChangedTag(tag.id);
         setTimeout(() => setLastChangedTag(null), 1500);
         setSpStatus('saved');
         setTimeout(() => setSpStatus('idle'), 2000);
+        // Publish write command to MQTT for connector to write to PLC
+        fetch('/api/connector/write', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ unitId: selectedUnit, tagId: tag.id, value: numVal })
+        }).catch(() => {});
       } else {
         setSpStatus('error');
         alert('Failed to save setpoint. Please try again.');
@@ -263,9 +294,9 @@ export default function RealTimePage() {
             onChange={(e) => setSelectedUnit(e.target.value)}
             className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
           >
-            <option value="R-101">Reactor 101</option>
-            <option value="R-102">Reactor 102</option>
-            <option value="D-201">Distillation 201</option>
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
           </select>
         </div>
       </div>

@@ -4,13 +4,14 @@ import { Package, ArrowDown, ArrowRight, CheckCircle2, XCircle, AlertTriangle, F
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-export default async function BatchTraceabilityPage({ params }: { params: { batchId: string } }) {
+export default async function BatchTraceabilityPage({ params }: { params: Promise<{ batchId: string }> }) {
+  const { batchId } = await params;
   // Try to find the batch by batchNumber or ID
   const batch = await prisma.batch.findFirst({
     where: {
       OR: [
-        { id: params.batchId },
-        { batchNumber: params.batchId }
+        { id: batchId },
+        { batchNumber: batchId }
       ]
     },
     include: {
@@ -33,7 +34,7 @@ export default async function BatchTraceabilityPage({ params }: { params: { batc
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-slate-900">Batch Not Found</h1>
-        <p className="text-slate-500 mt-2">Could not find batch with ID or number: {params.batchId}</p>
+        <p className="text-slate-500 mt-2">Could not find batch with ID or number: {batchId}</p>
       </div>
     );
   }

@@ -33,7 +33,7 @@ export function EditParametersModal({ recipe, isOpen, onClose, onSaved }: Props)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleaned = Object.fromEntries(
-      Object.entries(params).filter(([, v]) => v != null && v !== '')
+      Object.entries(params).filter(([, v]) => v != null && (typeof v !== 'string' || v !== ''))
     ) as RecipeParameters;
     setLoading(true);
     try {

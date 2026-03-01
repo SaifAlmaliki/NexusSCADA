@@ -8,7 +8,7 @@ export class S7Connector {
 
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.conn.initiateConnection({ port: 102, host: this.host, rack: this.rack, slot: this.slot }, (err) => {
+      this.conn.initiateConnection({ port: 102, host: this.host, rack: this.rack, slot: this.slot }, (err: Error | null) => {
         if (err) {
           console.error(`[S7] Connection failed to ${this.host}`, err);
           return reject(err);
@@ -23,11 +23,11 @@ export class S7Connector {
     if (this.intervalId) clearInterval(this.intervalId);
 
     // Register tags with the nodeS7 library
-    this.conn.setTranslationCB((tag) => tags[tag]);
+    this.conn.setTranslationCB((tag: string): string => tags[tag]);
     this.conn.addItems(Object.keys(tags));
 
     this.intervalId = setInterval(() => {
-      this.conn.readAllItems((err, values) => {
+      this.conn.readAllItems((err: Error | null, values: Record<string, unknown>) => {
         if (err) {
           console.error(`[S7] Error reading tags from ${this.host}:`, err);
           return;
@@ -40,6 +40,16 @@ export class S7Connector {
     }, intervalMs);
     
     console.log(`[S7] Started polling ${Object.keys(tags).length} tags every ${intervalMs}ms`);
+  }
+
+  async write(tagName: string, value: unknown): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.conn.writeItems(tagName, value, (err: Error | null) => {
+        if (err) return reject(err);
+        console.log(`[S7] Wrote ${value} to ${tagName}`);
+        resolve();
+      });
+    });
   }
 
   disconnect(): void {

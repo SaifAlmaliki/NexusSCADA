@@ -28,8 +28,7 @@ export async function syncAllBatches() {
           await prisma.batch.update({
             where: { id: mapping.mesBatchId },
             data: { 
-              state: status.state as any,
-              actualQuantity: status.actualQuantity || mapping.batch.actualQuantity
+              state: status.state as any
             }
           });
 

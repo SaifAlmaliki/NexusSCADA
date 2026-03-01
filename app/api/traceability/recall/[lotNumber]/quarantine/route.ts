@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function POST(req: Request, { params }: { params: { lotNumber: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ lotNumber: string }> }) {
   try {
+    const { lotNumber } = await params;
     const lot = await prisma.materialLot.findUnique({
-      where: { lotNumber: params.lotNumber },
+      where: { lotNumber },
       include: {
         consumedIn: {
           include: {

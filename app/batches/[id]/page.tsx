@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Package, RefreshCw, Play, Pause, Square, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -8,18 +9,20 @@ import Link from 'next/link';
 import { BatchStatusBadge } from '@/components/BatchStatusBadge';
 import { GenealogyTree } from '@/components/GenealogyTree';
 
-export default function BatchDetailsPage({ params }: { params: { id: string } }) {
+export default function BatchDetailsPage() {
+  const params = useParams();
+  const id = params.id as string;
   const [batch, setBatch] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     fetchBatch();
-  }, [params.id]);
+  }, [id]);
 
   const fetchBatch = async () => {
     try {
-      const res = await fetch(`/api/batches/${params.id}`);
+      const res = await fetch(`/api/batches/${id}`);
       if (res.ok) {
         const data = await res.json();
         setBatch(data);
@@ -34,7 +37,7 @@ export default function BatchDetailsPage({ params }: { params: { id: string } })
   const handleStateChange = async (newState: string) => {
     setUpdating(true);
     try {
-      const res = await fetch(`/api/batches/${params.id}/state`, {
+      const res = await fetch(`/api/batches/${id}/state`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ state: newState })

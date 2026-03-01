@@ -84,6 +84,7 @@ const navConfig = [
     icon: Settings,
     children: [
       { name: 'General', href: '/settings' },
+      { name: 'Connectors', href: '/settings/connectors' },
       { name: 'Batch Integration', href: '/settings/batch-integration' },
     ]
   },

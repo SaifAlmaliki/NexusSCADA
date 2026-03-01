@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { AlertTriangle, ShieldAlert, ArrowRight, Package, Factory, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-export default function RecallPage({ params }: { params: { lotNumber: string } }) {
+export default function RecallPage() {
+  const params = useParams();
+  const lotNumber = params.lotNumber as string;
   const [isQuarantining, setIsQuarantining] = useState(false);
   const [quarantineSuccess, setQuarantineSuccess] = useState(false);
   const [lotData, setLotData] = useState<any>(null);
@@ -16,7 +19,7 @@ export default function RecallPage({ params }: { params: { lotNumber: string } }
     // Fetch data for the lot and its downstream products
     const fetchTraceability = async () => {
       try {
-        const res = await fetch(`/api/traceability/recall/${params.lotNumber}`);
+        const res = await fetch(`/api/traceability/recall/${lotNumber}`);
         if (res.ok) {
           const data = await res.json();
           setLotData(data);
@@ -29,20 +32,20 @@ export default function RecallPage({ params }: { params: { lotNumber: string } }
     };
 
     fetchTraceability();
-  }, [params.lotNumber]);
+  }, [lotNumber]);
 
   const handleQuarantine = async () => {
     setIsQuarantining(true);
     try {
       // API call to quarantine all downstream lots
-      const res = await fetch(`/api/traceability/recall/${params.lotNumber}/quarantine`, {
+      const res = await fetch(`/api/traceability/recall/${lotNumber}/quarantine`, {
         method: 'POST',
       });
       
       if (res.ok) {
         setQuarantineSuccess(true);
         // Refresh data to show updated statuses
-        const updatedRes = await fetch(`/api/traceability/recall/${params.lotNumber}`);
+        const updatedRes = await fetch(`/api/traceability/recall/${lotNumber}`);
         if (updatedRes.ok) {
           const data = await updatedRes.json();
           setLotData(data);
@@ -78,7 +81,7 @@ export default function RecallPage({ params }: { params: { lotNumber: string } }
             <ShieldAlert className="text-red-500" />
             Backward Traceability & Recall
           </h1>
-          <p className="text-slate-500">Impact analysis for Lot {params.lotNumber}</p>
+          <p className="text-slate-500">Impact analysis for Lot {lotNumber}</p>
         </div>
         <div className="flex gap-3">
           <button 

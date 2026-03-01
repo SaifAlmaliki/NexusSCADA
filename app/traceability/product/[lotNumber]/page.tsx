@@ -4,9 +4,10 @@ import { Package, ArrowRight, CheckCircle2, AlertTriangle, Search, Factory } fro
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-export default async function ForwardTraceabilityPage({ params }: { params: { lotNumber: string } }) {
+export default async function ForwardTraceabilityPage({ params }: { params: Promise<{ lotNumber: string }> }) {
+  const { lotNumber } = await params;
   const lot = await prisma.materialLot.findUnique({
-    where: { lotNumber: params.lotNumber },
+    where: { lotNumber },
     include: {
       producedBy: {
         include: {
@@ -34,7 +35,7 @@ export default async function ForwardTraceabilityPage({ params }: { params: { lo
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-slate-900">Lot Not Found</h1>
-        <p className="text-slate-500 mt-2">Could not find material lot with number: {params.lotNumber}</p>
+        <p className="text-slate-500 mt-2">Could not find material lot with number: {lotNumber}</p>
       </div>
     );
   }
