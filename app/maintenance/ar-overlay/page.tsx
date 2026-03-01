@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { ScanLine, Crosshair, AlertTriangle, CheckCircle2, Info, Camera, RefreshCcw } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 // Simulated AR Data Overlays based on recognized equipment
 const arData = {

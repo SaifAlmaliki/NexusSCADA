@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardHeader, CardTitle } from '@/components/Card';
 import { Search, Filter, AlertTriangle, CheckCircle2, Download, RotateCcw } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 const mockAlarms = [
   { id: 'ALM-001', priority: 'critical', tag: 'R101_TEMP_HI', desc: 'Reactor 101 Temperature High High', unit: 'Reactor 101', time: '2023-10-25 10:42:15', acked: false },

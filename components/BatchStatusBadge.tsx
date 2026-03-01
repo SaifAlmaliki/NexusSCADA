@@ -1,4 +1,4 @@
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 export function BatchStatusBadge({ state }: { state: string }) {
   const stateColors: Record<string, string> = {

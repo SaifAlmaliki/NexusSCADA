@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Activity, AlertTriangle, CheckCircle2, Settings, Wrench, Clock, TrendingDown, Zap } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 // Mock data for predictive maintenance
 const mockEquipment = [

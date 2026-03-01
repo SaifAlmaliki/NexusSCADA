@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Save, Globe, Bell, Link as LinkIcon, Shield, Server, Mail, Smartphone } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'general' | 'plants' | 'integrations' | 'notifications'>('general');

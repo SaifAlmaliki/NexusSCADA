@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Activity, Thermometer, Droplets, Gauge, Settings2, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 // Mock hook for live data with WebSocket demonstration
 function useLiveTags(unitId: string) {

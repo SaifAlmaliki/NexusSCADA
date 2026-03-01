@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Settings2, Activity, Thermometer, Gauge, Droplets, RefreshCw, Box, Database } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 // Mock OPC UA Tag Discovery
 const mockDiscoveredTags = [

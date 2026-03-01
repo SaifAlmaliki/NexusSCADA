@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Package, ArrowDown, ArrowRight, CheckCircle2, XCircle, AlertTriangle, FileText, Download } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 export default async function BatchTraceabilityPage({ params }: { params: { batchId: string } }) {

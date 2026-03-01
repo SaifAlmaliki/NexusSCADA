@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Package, ArrowRight, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 import { BatchStatusBadge } from '@/components/BatchStatusBadge';
 
 export default async function BatchesPage() {

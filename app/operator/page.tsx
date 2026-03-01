@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { ScanLine, Mic, Camera, WifiOff, Wifi, Play, Pause, Square, CheckCircle2, AlertTriangle, UploadCloud } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 import Webcam from 'react-webcam';
 
 // Mock data for batches

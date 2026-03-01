@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Activity, CheckCircle, AlertTriangle, TrendingUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Link from 'next/link';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 const kpiData = [
   { title: 'Running Batches', value: '12', trend: '+2', trendUp: true, icon: Activity, color: 'text-blue-600', bg: 'bg-blue-100' },

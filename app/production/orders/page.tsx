@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Search, Filter, Plus, MoreHorizontal, Play, Edit, Eye, XCircle } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 const mockOrders = [
   { id: 'ORD-992', recipe: 'Polymer A - v2', start: '2023-10-25 08:00', end: '2023-10-25 14:30', status: 'running', quantity: 5000 },

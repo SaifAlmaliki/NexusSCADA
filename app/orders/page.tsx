@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { ClipboardList, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 import { CreateOrderModal } from '@/components/CreateOrderModal';
 
 export default async function OrdersPage() {

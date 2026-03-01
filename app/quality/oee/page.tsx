@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Target, Zap, ShieldCheck, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 const oeeData = [
   { name: 'Line 1', availability: 92, performance: 88, quality: 98, oee: 79.3 },

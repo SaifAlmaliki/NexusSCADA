@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { FileText, Download, BarChart3, ShieldCheck, FileSpreadsheet } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 export default function TraceabilityReportsPage() {
   const [isGenerating, setIsGenerating] = useState<string | null>(null);

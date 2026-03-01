@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { AlertTriangle, ShieldAlert, ArrowRight, Package, Factory, CheckCircle2 } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 export default function RecallPage({ params }: { params: { lotNumber: string } }) {

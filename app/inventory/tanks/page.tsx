@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { Droplets, AlertTriangle } from 'lucide-react';
-import { cn } from '@/components/Sidebar';
+import { cn } from '@/lib/utils';
 
 const mockTanks = [
   { id: 'T-101', name: 'Raw Material Tank A', material: 'Polymer Base', level: 85, capacity: 10000, unit: 'L', min: 20, max: 90, status: 'normal' },
