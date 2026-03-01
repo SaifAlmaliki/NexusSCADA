@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Factory, ArrowRight, Loader2 } from 'lucide-react';
 
@@ -12,6 +12,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,13 +24,14 @@ export default function LoginPage() {
       redirect: false,
       email,
       password,
+      callbackUrl,
     });
 
     if (res?.error) {
       setError('Invalid email or password');
       setLoading(false);
     } else {
-      router.push('/dashboard');
+      router.push(callbackUrl);
       router.refresh();
     }
   };

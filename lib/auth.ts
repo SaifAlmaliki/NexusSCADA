@@ -73,4 +73,5 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   secret: process.env.NEXTAUTH_SECRET || "super-secret-key-for-dev",
+  trustHost: true,
 };
