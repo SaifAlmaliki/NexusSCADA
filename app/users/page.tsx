@@ -73,6 +73,9 @@ export default function UsersPage() {
       const res = await fetch(`/api/users?${params.toString()}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 403) {
+          throw new Error("You need Admin or Manager role to view and manage users.");
+        }
         throw new Error(data.error || "Failed to fetch users");
       }
       const data = await res.json();
