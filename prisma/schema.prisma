@@ -97,6 +97,33 @@ enum EquipmentStatus {
   MAINTENANCE
 }
 
+// --- SCADA Setpoints (persisted per unit/tag) ---
+
+model ScadaSetpoint {
+  id        String   @id @default(uuid())
+  unitId    String
+  tagId     String
+  value     Float
+  updatedAt DateTime @updatedAt
+
+  @@unique([unitId, tagId])
+}
+
+// --- Recipes ---
+
+model Recipe {
+  id           String   @id @default(uuid())
+  name         String
+  version      Int      @default(1)
+  productType  String   // e.g., "Resin", "Solvent", "Catalyst"
+  status       String   @default("active") // "active" | "archived"
+  parameters   Json?    // e.g., { targetTemp: 85, agitatorSpeed: 150 }
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([name, version])
+}
+
 // --- MES Transactional Data ---
 
 model WorkOrder {

@@ -1,26 +1,57 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader } from '@/components/Card';
-import { Search, Filter, Plus, Edit, Eye, Archive, CheckCircle2, History } from 'lucide-react';
+import { Search, Filter, Edit, Eye, Archive, CheckCircle2, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CreateRecipeModal } from '@/components/CreateRecipeModal';
 
-const mockRecipes = [
-  { id: 'RCP-001', name: 'Polymer A', version: 2, productType: 'Resin', lastModified: '2023-10-20', status: 'active' },
-  { id: 'RCP-002', name: 'Solvent Mix B', version: 1, productType: 'Solvent', lastModified: '2023-09-15', status: 'active' },
-  { id: 'RCP-003', name: 'Catalyst C', version: 4, productType: 'Catalyst', lastModified: '2023-10-25', status: 'active' },
-  { id: 'RCP-004', name: 'Polymer A', version: 1, productType: 'Resin', lastModified: '2023-01-10', status: 'archived' },
-  { id: 'RCP-005', name: 'Resin D', version: 3, productType: 'Resin', lastModified: '2023-08-05', status: 'active' },
-];
+type Recipe = {
+  id: string;
+  name: string;
+  version: number;
+  productType: string;
+  status: string;
+  updatedAt: string;
+};
 
 export default function RecipesPage() {
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRecipe, setSelectedRecipe] = useState<typeof mockRecipes[0] | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
-  const filteredRecipes = mockRecipes.filter(r => 
-    r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const fetchRecipes = async () => {
+    try {
+      const res = await fetch('/api/recipes');
+      if (res.ok) {
+        const data = await res.json();
+        setRecipes(data);
+        if (data.length === 0) {
+          await fetch('/api/recipes/seed', { method: 'POST' });
+          const retry = await fetch('/api/recipes');
+          if (retry.ok) setRecipes(await retry.json());
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecipes();
+  }, []);
+
+  const filteredRecipes = recipes.filter(r =>
+    r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.productType.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toISOString().split('T')[0];
+  };
 
   return (
     <div className="space-y-6">
@@ -29,10 +60,7 @@ export default function RecipesPage() {
           <h1 className="text-2xl font-bold text-slate-800">Recipe Management</h1>
           <p className="text-sm text-slate-500 mt-1">Manage production recipes, versions, and parameters.</p>
         </div>
-        <button className="inline-flex items-center justify-center px-4 py-2 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition-colors shadow-sm">
-          <Plus size={18} className="mr-2" />
-          Create Recipe
-        </button>
+        <CreateRecipeModal onCreated={fetchRecipes} />
       </div>
 
       <div className={cn("grid gap-6 transition-all", selectedRecipe ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1")}>
@@ -68,7 +96,13 @@ export default function RecipesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRecipes.length > 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                      Loading recipes...
+                    </td>
+                  </tr>
+                ) : filteredRecipes.length > 0 ? (
                   filteredRecipes.map((recipe) => (
                     <tr 
                       key={recipe.id} 
@@ -185,7 +219,7 @@ export default function RecipesPage() {
                       <span className="font-medium text-blue-900">v{selectedRecipe.version}.0</span>
                       <span className="text-blue-600/70 ml-2 text-xs">Current</span>
                     </div>
-                    <span className="text-blue-700/70 text-xs">{selectedRecipe.lastModified}</span>
+                    <span className="text-blue-700/70 text-xs">{formatDate(selectedRecipe.updatedAt)}</span>
                   </div>
                   {selectedRecipe.version > 1 && (
                     <div className="flex items-center justify-between text-sm p-2 hover:bg-slate-50 rounded border border-transparent cursor-pointer transition-colors">

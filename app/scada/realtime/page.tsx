@@ -83,20 +83,58 @@ export default function RealTimePage() {
   const [selectedUnit, setSelectedUnit] = useState('R-101');
   const { tags, wsStatus } = useLiveTags(selectedUnit);
   const [setpoints, setSetpoints] = useState<Record<string, string>>({});
+  const [savedSetpoints, setSavedSetpoints] = useState<Record<string, number>>({});
+  const [spStatus, setSpStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  // Load persisted setpoints from database when unit changes
+  useEffect(() => {
+    fetch(`/api/scada/setpoints?unitId=${selectedUnit}`)
+      .then(res => res.ok ? res.json() : {})
+      .then(data => setSavedSetpoints(data))
+      .catch(() => setSavedSetpoints({}));
+  }, [selectedUnit]);
 
   const handleSpChange = (id: string, value: string) => {
     setSetpoints(prev => ({ ...prev, [id]: value }));
   };
 
-  const applySetpoint = (id: string) => {
+  const applySetpoint = async (id: string) => {
     const val = setpoints[id];
     if (!val) return;
-    if (confirm(`Are you sure you want to change setpoint for ${id} to ${val}?`)) {
-      // API call would go here
-      alert(`Setpoint applied: ${id} = ${val}`);
-      setSetpoints(prev => ({ ...prev, [id]: '' }));
+    const tag = tags.find(t => t.id === id);
+    if (!tag) return;
+    if (!confirm(`Apply setpoint for ${tag.name} (${id}) to ${val} ${tag.unit}?`)) return;
+
+    setSpStatus('saving');
+    try {
+      const res = await fetch('/api/scada/setpoints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unitId: selectedUnit, tagId: id, value: parseFloat(val) })
+      });
+      if (res.ok) {
+        const numVal = parseFloat(val);
+        setSavedSetpoints(prev => ({ ...prev, [id]: numVal }));
+        setSetpoints(prev => ({ ...prev, [id]: '' }));
+        setSpStatus('saved');
+        setTimeout(() => setSpStatus('idle'), 2000);
+      } else {
+        setSpStatus('error');
+        alert('Failed to save setpoint. Please try again.');
+        setTimeout(() => setSpStatus('idle'), 2000);
+      }
+    } catch {
+      setSpStatus('error');
+      alert('Failed to save setpoint. Please try again.');
+      setTimeout(() => setSpStatus('idle'), 2000);
     }
   };
+
+  // Merge saved setpoints into tags for display
+  const tagsWithSp = tags.map(t => ({
+    ...t,
+    sp: savedSetpoints[t.id] ?? t.sp
+  }));
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -127,7 +165,12 @@ export default function RealTimePage() {
               {wsStatus === 'connected' ? 'Live (WS)' : wsStatus === 'mock' ? 'Mock Data' : 'Connecting...'}
             </span>
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Live monitoring and control of production units.</p>
+          <p className="text-sm text-slate-500 mt-1">
+            Live monitoring and control of production units. The mimic updates in real time with tag values (level, temp, pressure, flow, agitator). Setpoints are saved to the database.
+          </p>
+          {spStatus === 'saved' && (
+            <span className="text-xs text-emerald-600 font-medium mt-1 block">Setpoint saved to database</span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <label className="text-sm font-medium text-slate-700">Select Unit:</label>
@@ -147,7 +190,10 @@ export default function RealTimePage() {
         {/* Mimic Panel */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>{selectedUnit} Mimic</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              {selectedUnit} Mimic
+              <span className="text-xs font-normal text-slate-500">(live values)</span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex items-center justify-center bg-slate-50 border-t border-slate-100 min-h-[400px] relative">
             {/* Simple SVG Mimic representation */}
@@ -194,7 +240,7 @@ export default function RealTimePage() {
             <CardTitle>Live Tags</CardTitle>
           </CardHeader>
           <div className="divide-y divide-slate-100">
-            {tags.map(tag => (
+            {tagsWithSp.map(tag => (
               <div key={tag.id} className="p-4 hover:bg-slate-50 transition-colors">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -227,10 +273,10 @@ export default function RealTimePage() {
                       />
                       <button 
                         onClick={() => applySetpoint(tag.id)}
-                        disabled={!setpoints[tag.id]}
+                        disabled={!setpoints[tag.id] || spStatus === 'saving'}
                         className="px-2 py-1 bg-slate-800 text-white text-xs rounded hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        Set
+                        {spStatus === 'saving' ? 'Saving...' : 'Set'}
                       </button>
                     </div>
                   </div>
