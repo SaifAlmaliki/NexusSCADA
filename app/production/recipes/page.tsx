@@ -5,6 +5,7 @@ import { Card, CardHeader } from '@/components/Card';
 import { Search, Filter, Edit, Eye, Archive, CheckCircle2, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CreateRecipeModal } from '@/components/CreateRecipeModal';
+import { EditParametersModal, type RecipeParameters } from '@/components/EditParametersModal';
 
 type Recipe = {
   id: string;
@@ -13,13 +14,16 @@ type Recipe = {
   productType: string;
   status: string;
   updatedAt: string;
+  parameters?: RecipeParameters | null;
 };
+
 
 export default function RecipesPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [editParamsOpen, setEditParamsOpen] = useState(false);
 
   const fetchRecipes = async () => {
     try {
@@ -32,12 +36,14 @@ export default function RecipesPage() {
           const retry = await fetch('/api/recipes');
           if (retry.ok) setRecipes(await retry.json());
         }
+        return data;
       }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+    return [];
   };
 
   useEffect(() => {
@@ -107,6 +113,7 @@ export default function RecipesPage() {
                     <tr 
                       key={recipe.id} 
                       onClick={() => setSelectedRecipe(recipe)}
+                      role="button"
                       className={cn(
                         "border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors",
                         selectedRecipe?.id === recipe.id ? "bg-teal-50/50" : ""
@@ -115,7 +122,7 @@ export default function RecipesPage() {
                       <td className="px-6 py-4 font-medium text-slate-900">{recipe.name}</td>
                       <td className="px-6 py-4 text-slate-600">v{recipe.version}.0</td>
                       <td className="px-6 py-4 text-slate-600">{recipe.productType}</td>
-                      <td className="px-6 py-4 text-slate-600">{recipe.lastModified}</td>
+                      <td className="px-6 py-4 text-slate-600">{formatDate(recipe.updatedAt)}</td>
                       <td className="px-6 py-4">
                         <span className={cn(
                           "px-2.5 py-1 rounded-full text-xs font-medium capitalize",
@@ -124,13 +131,13 @@ export default function RecipesPage() {
                           {recipe.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
-                          <button className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors" title="View Details">
+                          <button className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded transition-colors" title="View Details" onClick={() => setSelectedRecipe(recipe)}>
                             <Eye size={16} />
                           </button>
                           {recipe.status === 'active' && (
-                            <button className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="Edit">
+                            <button className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="Edit" onClick={() => { setSelectedRecipe(recipe); setEditParamsOpen(true); }}>
                               <Edit size={16} />
                             </button>
                           )}
@@ -189,22 +196,36 @@ export default function RecipesPage() {
                   Key Parameters
                 </h4>
                 <div className="bg-slate-50 rounded-lg border border-slate-200 p-4 space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Target Temp</span>
-                    <span className="font-medium text-slate-900 font-mono">85.0 °C</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Agitator Speed</span>
-                    <span className="font-medium text-slate-900 font-mono">150 RPM</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Reaction Time</span>
-                    <span className="font-medium text-slate-900 font-mono">120 min</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Cooling Rate</span>
-                    <span className="font-medium text-slate-900 font-mono">2.5 °C/min</span>
-                  </div>
+                  {selectedRecipe.parameters && Object.keys(selectedRecipe.parameters).length > 0 ? (
+                    <>
+                      {selectedRecipe.parameters.targetTemp != null && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">Target Temp</span>
+                          <span className="font-medium text-slate-900 font-mono">{selectedRecipe.parameters.targetTemp} °C</span>
+                        </div>
+                      )}
+                      {selectedRecipe.parameters.agitatorSpeed != null && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">Agitator Speed</span>
+                          <span className="font-medium text-slate-900 font-mono">{selectedRecipe.parameters.agitatorSpeed} RPM</span>
+                        </div>
+                      )}
+                      {selectedRecipe.parameters.reactionTime != null && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">Reaction Time</span>
+                          <span className="font-medium text-slate-900 font-mono">{selectedRecipe.parameters.reactionTime} min</span>
+                        </div>
+                      )}
+                      {selectedRecipe.parameters.coolingRate != null && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">Cooling Rate</span>
+                          <span className="font-medium text-slate-900 font-mono">{selectedRecipe.parameters.coolingRate} °C/min</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-500 italic">No parameters configured. Click Edit Parameters to set them.</p>
+                  )}
                 </div>
               </div>
 
@@ -231,12 +252,31 @@ export default function RecipesPage() {
               </div>
 
               <div className="pt-4 border-t border-slate-100">
-                <button className="w-full py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors">
+                <button
+                  onClick={() => setEditParamsOpen(true)}
+                  disabled={selectedRecipe.status !== 'active'}
+                  className="w-full py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
                   Edit Parameters
                 </button>
               </div>
             </div>
           </Card>
+        )}
+
+        {selectedRecipe && (
+          <EditParametersModal
+            recipe={selectedRecipe}
+            isOpen={editParamsOpen}
+            onClose={() => setEditParamsOpen(false)}
+            onSaved={async () => {
+            const updated = await fetchRecipes();
+            if (selectedRecipe) {
+              const found = updated.find((r: Recipe) => r.id === selectedRecipe.id);
+              if (found) setSelectedRecipe(found);
+            }
+          }}
+          />
         )}
       </div>
     </div>

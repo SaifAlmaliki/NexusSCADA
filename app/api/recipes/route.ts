@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         name,
         productType,
         version: version || 1,
-        parameters: parameters || {},
+        parameters: parameters && Object.keys(parameters).length ? parameters : null,
         status: 'active'
       }
     });
