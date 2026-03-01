@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # Transactional Database (PostgreSQL)
+  # Stores MES data: Orders, Equipment Hierarchy, Users, Downtimes
+  postgres:
+    image: postgres:15-alpine
+    container_name: uns-postgres
+    environment:
+      - POSTGRES_USER=mes_user
+      - POSTGRES_PASSWORD=mes_password
+      - POSTGRES_DB=mes_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Time-Series Historian (InfluxDB)
+  # Stores high-frequency tag data from the edge
+  influxdb:
+    image: influxdb:2
+    container_name: uns-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=nexus-corp
+      - DOCKER_INFLUXDB_INIT_BUCKET=historian
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=super-secret-auth-token
+    volumes:
+      - influxdata:/var/lib/influxdb2
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    name: uns-pgdata
+  influxdata:
+    name: uns-influxdata

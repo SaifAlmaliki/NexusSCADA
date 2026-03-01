@@ -1,0 +1,349 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- ISA-95 Equipment Hierarchy ---
+
+model Site {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  location    String?
+  areas       Area[]
+  documents   Document[]
+  users       User[]
+  batchConfigs BatchIntegrationConfig[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Document {
+  id          String   @id @default(uuid())
+  name        String
+  size        Int
+  type        String
+  url         String
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Area {
+  id          String   @id @default(uuid())
+  name        String
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  lines       Line[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name, siteId])
+}
+
+model Line {
+  id          String      @id @default(uuid())
+  name        String
+  areaId      String
+  area        Area        @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  equipment   Equipment[]
+  workOrders  WorkOrder[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([name, areaId])
+}
+
+model Equipment {
+  id              String          @id @default(uuid())
+  name            String
+  type            String          // e.g., "Reactor", "Mixer", "Conveyor"
+  status          EquipmentStatus @default(IDLE)
+  healthScore     Float?          @default(100.0) // 0-100 health index based on ML
+  mtbf            Float?          // Mean Time Between Failures in hours
+  lastMaintenance DateTime?
+  nextMaintenance DateTime?
+  lineId          String
+  line            Line            @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  downtimes       DowntimeEvent[]
+  anomalies       Anomaly[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([name, lineId])
+}
+
+model Anomaly {
+  id          String    @id @default(uuid())
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  type        String    // "VIBRATION", "TEMPERATURE", "PRESSURE"
+  severity    String    // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+  description String
+  detectedAt  DateTime  @default(now())
+  resolved    Boolean   @default(false)
+  resolvedAt  DateTime?
+}
+
+enum EquipmentStatus {
+  RUNNING
+  IDLE
+  DOWN
+  MAINTENANCE
+}
+
+// --- MES Transactional Data ---
+
+model WorkOrder {
+  id               String      @id @default(uuid())
+  orderNumber      String      @unique
+  erpOrderId       String?     @unique
+  product          String
+  targetQty        Int
+  actualQty        Int         @default(0)
+  status           OrderStatus @default(PENDING)
+  lineId           String
+  line             Line        @relation(fields: [lineId], references: [id])
+  plannedStartDate DateTime?
+  plannedEndDate   DateTime?
+  actualStartDate  DateTime?
+  actualEndDate    DateTime?
+  varianceReason   String?
+  startTime        DateTime?
+  endTime          DateTime?
+  batches          Batch[]
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+model Batch {
+  id               String      @id @default(uuid())
+  batchNumber      String      @unique
+  barcode          String?     @unique
+  workOrderId      String
+  workOrder        WorkOrder   @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  quantity         Int
+  status           BatchStatus @default(PENDING)
+  state            BatchState  @default(IDLE)
+  externalBatchId  String?
+  operatorId       String?
+  operator         User?       @relation(fields: [operatorId], references: [id])
+  plannedStartDate DateTime?
+  plannedEndDate   DateTime?
+  actualStartDate  DateTime?
+  actualEndDate    DateTime?
+  varianceReason   String?
+  rootCause        String?     // AI generated root cause for overruns
+  startTime        DateTime?
+  endTime          DateTime?
+  inspections      QualityInspection[]
+  consumedLots     MaterialConsumption[]
+  producedLots     MaterialProduction[]
+  signatures       Signature[]
+  externalMapping  BatchExternalMapping?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+enum BatchState {
+  IDLE
+  SETUP
+  RUNNING
+  HOLD
+  COMPLETE
+  ABORT
+}
+
+enum BatchStatus {
+  PENDING
+  IN_PROGRESS
+  HOLD
+  COMPLETED
+}
+
+// --- OEE & Event Data ---
+
+model DowntimeEvent {
+  id          String    @id @default(uuid())
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  reason      String
+  category    String    // e.g., "Mechanical", "Electrical", "Operational"
+  startTime   DateTime  @default(now())
+  endTime     DateTime?
+  duration    Int?      // Duration in seconds
+  createdAt   DateTime  @default(now())
+}
+
+model QualityInspection {
+  id          String   @id @default(uuid())
+  batchId     String
+  batch       Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  inspectorId String
+  inspector   User     @relation(fields: [inspectorId], references: [id])
+  photoUrl    String?
+  aiResult    String?  // JSON string containing AI analysis results
+  isDefective Boolean  @default(false)
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+model QualityDefect {
+  id          String   @id @default(uuid())
+  batchNumber String
+  defectType  String
+  quantity    Int
+  detectedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+model OfflineSyncQueue {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // e.g., "START_BATCH", "SUBMIT_INSPECTION"
+  payload   String   // JSON payload of the action
+  status    String   @default("PENDING") // "PENDING", "SYNCED", "FAILED"
+  error     String?
+  createdAt DateTime @default(now())
+}
+
+model ErpSyncLog {
+  id               String   @id @default(uuid())
+  syncType         String   // e.g., "ORDER_IMPORT", "STATUS_UPDATE"
+  status           String   // "SUCCESS", "FAILED", "PARTIAL"
+  recordsProcessed Int      @default(0)
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+}
+
+// --- MES Batch Integration ---
+
+model BatchIntegrationConfig {
+  id                   String   @id @default(uuid())
+  siteId               String
+  site                 Site     @relation(fields: [siteId], references: [id])
+  type                 String   // "rest" | "opcua"
+  baseUrl              String?
+  authToken            String?  // encrypted
+  pollingInterval      Int      @default(30)
+  mappingRules         Json     // field mappings
+  lastSyncAt           DateTime?
+  syncStatus           String?  // "healthy" | "error"
+  createdAt            DateTime @default(now())
+}
+
+model BatchExternalMapping {
+  id                 String   @id @default(uuid())
+  mesBatchId         String   @unique
+  batch              Batch    @relation(fields: [mesBatchId], references: [id])
+  externalBatchId    String
+  externalState      String?
+  lastSyncAt         DateTime?
+  syncError          String?
+}
+
+// --- Traceability & Genealogy ---
+
+model MaterialLot {
+  id           String   @id @default(uuid())
+  lotNumber    String   @unique
+  materialName String
+  type         MaterialType
+  quantity     Float
+  unit         String   @default("kg")
+  expiryDate   DateTime?
+  supplier     String?
+  status       LotStatus @default(RELEASED)
+  
+  consumedIn   MaterialConsumption[]
+  producedBy   MaterialProduction[]
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum MaterialType {
+  RAW_MATERIAL
+  INTERMEDIATE
+  FINISHED_GOOD
+}
+
+enum LotStatus {
+  RELEASED
+  QUARANTINED
+  REJECTED
+  CONSUMED
+}
+
+model MaterialConsumption {
+  id            String      @id @default(uuid())
+  batchId       String
+  batch         Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  materialLotId String
+  materialLot   MaterialLot @relation(fields: [materialLotId], references: [id])
+  quantityUsed  Float
+  unit          String      @default("kg")
+  consumedAt    DateTime    @default(now())
+}
+
+model MaterialProduction {
+  id            String      @id @default(uuid())
+  batchId       String
+  batch         Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  materialLotId String
+  materialLot   MaterialLot @relation(fields: [materialLotId], references: [id])
+  quantity      Float
+  unit          String      @default("kg")
+  isWaste       Boolean     @default(false)
+  wasteReason   String?
+  producedAt    DateTime    @default(now())
+}
+
+model Signature {
+  id        String   @id @default(uuid())
+  batchId   String
+  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  role      String   // e.g., "OPERATOR", "QA_MANAGER"
+  meaning   String   // e.g., "Executed", "Reviewed", "Approved"
+  signedAt  DateTime @default(now())
+}
+
+// --- Users & Roles ---
+
+model User {
+  id          String   @id @default(uuid()) // Maps to Supabase Auth UID or local user ID
+  email       String   @unique
+  name        String
+  password    String?  // Added for local authentication
+  role        Role     @default(OPERATOR)
+  siteId      String?  // Optional for admins, required for site-specific users
+  site        Site?    @relation(fields: [siteId], references: [id])
+  inspections QualityInspection[]
+  syncQueue   OfflineSyncQueue[]
+  signatures  Signature[]
+  batches     Batch[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  ENGINEER
+  OPERATOR
+}

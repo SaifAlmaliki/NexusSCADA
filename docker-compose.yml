@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # 1. Unified Namespace MQTT Broker (MonsterMQ)
+  # Acts as the central nervous system for OT-IT data exchange
+  monstermq:
+    image: monstermq:latest # Replace with your specific registry if needed
+    container_name: uns-monstermq
+    ports:
+      - "1883:1883"   # MQTT (Edge Devices & PLCs)
+      - "8883:8883"   # MQTT over TLS (Secure Edge)
+      - "9001:9001"   # WebSockets (React UI Real-Time Updates)
+    environment:
+      - MONSTERMQ_PERSISTENCE=true
+      - DATABASE_URL=postgresql://mes_user:mes_password@postgres:5432/mes_db
+    depends_on:
+      - postgres
+    networks:
+      - uns-network
+    restart: unless-stopped
+
+  # 2. Transactional Database (Supabase Local Equivalent)
+  # Stores MES data: Orders, Equipment Hierarchy, Users, Downtimes
+  postgres:
+    image: postgres:15-alpine
+    container_name: uns-postgres
+    environment:
+      - POSTGRES_USER=mes_user
+      - POSTGRES_PASSWORD=mes_password
+      - POSTGRES_DB=mes_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - uns-network
+    restart: unless-stopped
+
+  # 3. Time-Series Historian (InfluxDB)
+  # Stores high-frequency tag data from the edge
+  influxdb:
+    image: influxdb:2
+    container_name: uns-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=nexus-corp
+      - DOCKER_INFLUXDB_INIT_BUCKET=historian
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=super-secret-auth-token
+    volumes:
+      - influxdata:/var/lib/influxdb2
+    networks:
+      - uns-network
+    restart: unless-stopped
+
+  # 4. Telegraf (MQTT to InfluxDB Bridge)
+  # Subscribes to MonsterMQ and writes to InfluxDB automatically
+  telegraf:
+    image: telegraf:latest
+    container_name: uns-telegraf
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      - monstermq
+      - influxdb
+    networks:
+      - uns-network
+    restart: unless-stopped
+
+  # 5. Redis for Async Jobs & Caching
+  # Handles BullMQ workflows for MES order dispatching
+  redis:
+    image: redis:7-alpine
+    container_name: uns-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - uns-network
+    restart: unless-stopped
+
+  # 4. Backend API (Bun) - OT/IT Bridge Logic
+  # Handles GraphQL queries, REST endpoints, and MES business logic
+  api:
+    image: oven/bun:latest
+    container_name: uns-bun-api
+    working_dir: /app
+    # Placeholder command until backend code is mounted/built
+    command: tail -f /dev/null 
+    environment:
+      - DATABASE_URL=postgresql://mes_user:mes_password@postgres:5432/mes_db
+      - MQTT_URL=mqtt://monstermq:1883
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+      - monstermq
+      - redis
+    networks:
+      - uns-network
+    restart: unless-stopped
+
+  # 5. Frontend UI (Next.js Dashboard)
+  # The unified interface for SCADA, MES, and Fleet Management
+  frontend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: uns-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_MQTT_WS_URL=ws://localhost:9001
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+    volumes:
+      - uploads:/app/public/uploads
+    depends_on:
+      - api
+    networks:
+      - uns-network
+    restart: unless-stopped
+
+  # 6. Industrial Edge Connector
+  # Polls OPC UA, Modbus, and S7 PLCs and publishes to MQTT
+  connector:
+    build:
+      context: ./connector
+      dockerfile: Dockerfile
+    container_name: uns-connector
+    environment:
+      - MQTT_URL=mqtt://monstermq:1883
+      - SIMULATION_MODE=true # Set to false to connect to real PLCs
+    depends_on:
+      - monstermq
+    networks:
+      - uns-network
+    restart: unless-stopped
+
+networks:
+  uns-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+    name: uns-pgdata
+  influxdata:
+    name: uns-influxdata
+  uploads:
+    name: uns-uploads
