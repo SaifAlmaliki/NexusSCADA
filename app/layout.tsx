@@ -3,6 +3,8 @@ import './globals.css'; // Global styles
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { AppLayout } from '@/components/AppLayout';
 import Providers from './providers';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -24,7 +26,9 @@ export const viewport: Viewport = {
   themeColor: '#0f172a',
 };
 
-export default function RootLayout({children}: {children: React.ReactNode}) {
+export default async function RootLayout({children}: {children: React.ReactNode}) {
+  const session = await getServerSession(authOptions);
+
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <head>
@@ -34,9 +38,13 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
       </head>
       <body suppressHydrationWarning className="font-sans antialiased text-slate-900">
         <Providers>
-          <AppLayout>
-            {children}
-          </AppLayout>
+          {session ? (
+            <AppLayout>
+              {children}
+            </AppLayout>
+          ) : (
+            children
+          )}
         </Providers>
         <script
           dangerouslySetInnerHTML={{
