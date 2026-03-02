@@ -7,12 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- ISA-95 Equipment Hierarchy ---
+// --- ISA-95 Equipment Hierarchy (IEC 62264) ---
+// Site = ISA-95 Site; Area = Area; Line = Work Center / Production Line; Equipment = Work Unit.
 
 model Site {
   id                 String              @id @default(uuid())
   name               String              @unique
   location           String?
+  description        String?
+  timezone           String?             // e.g. "America/New_York"
+  address            String?
   areas              Area[]
   documents          Document[]
   users              User[]

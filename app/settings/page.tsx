@@ -1,12 +1,133 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
-import { Save, Globe, Bell, Link as LinkIcon, Shield, Server, Mail, Smartphone } from 'lucide-react';
+import { Save, Globe, Bell, Link as LinkIcon, Shield, Server, Mail, Smartphone, Pencil, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { HierarchyTreeEditor } from '@/components/HierarchyTreeEditor';
+import type { HierarchySite } from '@/lib/hierarchy';
+import { useSession } from 'next-auth/react';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'general' | 'plants' | 'integrations' | 'notifications'>('general');
+  const { data: session } = useSession();
+  const [sites, setSites] = useState<HierarchySite[]>([]);
+  const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
+  const [addingSite, setAddingSite] = useState(false);
+  const [manageStructureSiteId, setManageStructureSiteId] = useState<string | null>(null);
+  const [siteForm, setSiteForm] = useState({ name: '', location: '', description: '', timezone: '', address: '' });
+  const [saving, setSaving] = useState(false);
+  const isAdmin = session?.user?.role === 'ADMIN';
+
+  const loadSites = async () => {
+    try {
+      const res = await fetch('/api/sites');
+      if (res.ok) setSites(await res.json());
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'plants') loadSites();
+  }, [activeTab]);
+
+  const openEdit = (site: HierarchySite) => {
+    setEditingSiteId(site.id);
+    setSiteForm({
+      name: site.name,
+      location: site.location ?? '',
+      description: (site as { description?: string }).description ?? '',
+      timezone: (site as { timezone?: string }).timezone ?? '',
+      address: (site as { address?: string }).address ?? '',
+    });
+  };
+
+  const openAdd = () => {
+    setAddingSite(true);
+    setSiteForm({ name: '', location: '', description: '', timezone: '', address: '' });
+  };
+
+  const loadSiteForEdit = async (id: string) => {
+    try {
+      const res = await fetch(`/api/sites/${id}`);
+      if (res.ok) {
+        const site = await res.json();
+        setSiteForm({
+          name: site.name,
+          location: site.location ?? '',
+          description: site.description ?? '',
+          timezone: site.timezone ?? '',
+          address: site.address ?? '',
+        });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (editingSiteId) loadSiteForEdit(editingSiteId);
+  }, [editingSiteId]);
+
+  const saveSiteEdit = async () => {
+    if (!editingSiteId || !siteForm.name.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/sites/${editingSiteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: siteForm.name.trim(),
+          location: siteForm.location || null,
+          description: siteForm.description || null,
+          timezone: siteForm.timezone || null,
+          address: siteForm.address || null,
+        }),
+      });
+      if (res.ok) {
+        setEditingSiteId(null);
+        loadSites();
+      } else {
+        const data = await res.json();
+        alert(data?.error ?? 'Failed to update');
+      }
+    } catch (e) {
+      alert('Failed to update site');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveNewSite = async () => {
+    if (!siteForm.name.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/sites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: siteForm.name.trim(),
+          location: siteForm.location || null,
+          description: siteForm.description || null,
+          timezone: siteForm.timezone || null,
+          address: siteForm.address || null,
+        }),
+      });
+      if (res.ok) {
+        setAddingSite(false);
+        setSiteForm({ name: '', location: '', description: '', timezone: '', address: '' });
+        loadSites();
+      } else {
+        const data = await res.json();
+        alert(data?.error ?? 'Failed to create');
+      }
+    } catch (e) {
+      alert('Failed to create site');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -210,25 +331,177 @@ export default function SettingsPage() {
           )}
 
           {activeTab === 'plants' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Plants & Units Configuration</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-slate-500 mb-4">Manage physical locations and production units.</p>
-                <div className="space-y-3">
-                  {['Plant Alpha (NY)', 'Plant Beta (TX)', 'Plant Gamma (CA)'].map(plant => (
-                    <div key={plant} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50">
-                      <span className="font-medium text-slate-800">{plant}</span>
-                      <button className="text-sm text-teal-600 hover:text-teal-700 font-medium">Edit Units</button>
-                    </div>
-                  ))}
-                  <button className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-400 hover:bg-slate-50 transition-colors">
-                    + Add New Plant
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Plants & Units Configuration</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-slate-500 mb-4">Manage sites (plants) and their hierarchy: areas, lines, equipment. ISA-95 aligned. Click <strong>Manage structure</strong> on a site to add or edit areas, lines, and equipment.</p>
+                  {manageStructureSiteId ? (
+                    <HierarchyTreeEditor
+                      siteId={manageStructureSiteId}
+                      siteName={sites.find((s) => s.id === manageStructureSiteId)?.name}
+                      onClose={() => setManageStructureSiteId(null)}
+                      onSaved={() => loadSites()}
+                    />
+                  ) : (
+                    <>
+                      <div className="space-y-3">
+                        {sites.map((site) => (
+                          <div key={site.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50">
+                            <div>
+                              <span className="font-medium text-slate-800">{site.name}</span>
+                              {site.location && <span className="text-slate-500 text-sm ml-2">— {site.location}</span>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isAdmin && (
+                                <button
+                                  onClick={() => openEdit(site)}
+                                  className="text-sm text-teal-600 hover:text-teal-700 font-medium inline-flex items-center gap-1"
+                                >
+                                  <Pencil size={14} /> Edit
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setManageStructureSiteId(site.id)}
+                                className="text-sm text-teal-600 hover:text-teal-700 font-medium inline-flex items-center gap-1"
+                              >
+                                <Building2 size={14} /> Manage structure
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {isAdmin && (
+                          <button
+                            onClick={openAdd}
+                            className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-700 hover:border-slate-400 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                          >
+                            + Add New Plant
+                          </button>
+                        )}
+                      </div>
+
+                      {editingSiteId && (
+                        <div className="mt-6 p-4 border border-slate-200 rounded-lg bg-white space-y-4">
+                          <h4 className="font-medium text-slate-800">Edit site</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-slate-700">Name *</label>
+                              <input
+                                type="text"
+                                value={siteForm.name}
+                                onChange={(e) => setSiteForm((f) => ({ ...f, name: e.target.value }))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-slate-700">Location</label>
+                              <input
+                                type="text"
+                                value={siteForm.location}
+                                onChange={(e) => setSiteForm((f) => ({ ...f, location: e.target.value }))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              />
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                              <label className="text-sm font-medium text-slate-700">Description</label>
+                              <textarea
+                                value={siteForm.description}
+                                onChange={(e) => setSiteForm((f) => ({ ...f, description: e.target.value }))}
+                                rows={2}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-slate-700">Timezone</label>
+                              <input
+                                type="text"
+                                value={siteForm.timezone}
+                                onChange={(e) => setSiteForm((f) => ({ ...f, timezone: e.target.value }))}
+                                placeholder="e.g. America/New_York"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-slate-700">Address</label>
+                              <input
+                                type="text"
+                                value={siteForm.address}
+                                onChange={(e) => setSiteForm((f) => ({ ...f, address: e.target.value }))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={saveSiteEdit} disabled={saving} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50">Save</button>
+                            <button onClick={() => setEditingSiteId(null)} className="px-4 py-2 border border-slate-300 rounded-lg text-sm">Cancel</button>
+                          </div>
+                        </div>
+                      )}
+
+                      {addingSite && (
+                        <div className="mt-6 p-4 border border-slate-200 rounded-lg bg-white space-y-4">
+                          <h4 className="font-medium text-slate-800">Add new site</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-slate-700">Name *</label>
+                              <input
+                                type="text"
+                                value={siteForm.name}
+                                onChange={(e) => setSiteForm((f) => ({ ...f, name: e.target.value }))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-slate-700">Location</label>
+                              <input
+                                type="text"
+                                value={siteForm.location}
+                                onChange={(e) => setSiteForm((f) => ({ ...f, location: e.target.value }))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              />
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                              <label className="text-sm font-medium text-slate-700">Description</label>
+                              <textarea
+                                value={siteForm.description}
+                                onChange={(e) => setSiteForm((f) => ({ ...f, description: e.target.value }))}
+                                rows={2}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-slate-700">Timezone</label>
+                              <input
+                                type="text"
+                                value={siteForm.timezone}
+                                onChange={(e) => setSiteForm((f) => ({ ...f, timezone: e.target.value }))}
+                                placeholder="e.g. America/New_York"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-slate-700">Address</label>
+                              <input
+                                type="text"
+                                value={siteForm.address}
+                                onChange={(e) => setSiteForm((f) => ({ ...f, address: e.target.value }))}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={saveNewSite} disabled={saving} className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50">Create</button>
+                            <button onClick={() => setAddingSite(false)} className="px-4 py-2 border border-slate-300 rounded-lg text-sm">Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
       </div>

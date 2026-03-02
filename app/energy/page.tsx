@@ -15,11 +15,9 @@ import {
 import { Zap, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useScope } from '@/components/ScopeProvider';
+import { HierarchyScopeSelector } from '@/components/HierarchyScopeSelector';
 
 type HierarchyLevel = 'line' | 'area' | 'site' | 'multi-plant';
-
-type Area = { id: string; name: string; siteId: string };
-type LineEntity = { id: string; name: string; areaId: string };
 
 type EnergyMeterItem = {
   id: string;
@@ -42,11 +40,24 @@ const TIME_PRESETS: { label: string; start: string; end: string }[] = [
 ];
 
 export default function EnergyPage() {
-  const { siteId } = useScope();
-  const [meters, setMeters] = useState<EnergyMeterItem[]>([]);
-  const [level, setLevel] = useState<HierarchyLevel>('site');
+  const { siteId: scopeSiteId, setSiteId: setScopeSiteId } = useScope();
+  const [siteId, setSiteId] = useState<string | null>(null);
   const [areaId, setAreaId] = useState<string>('');
   const [lineId, setLineId] = useState<string>('');
+
+  useEffect(() => {
+    setSiteId(scopeSiteId ?? null);
+  }, [scopeSiteId]);
+
+  const handleScopeChange = (scope: { siteId: string | null; areaId: string | null; lineId: string | null }) => {
+    if (scope.siteId !== scopeSiteId) setScopeSiteId(scope.siteId ?? undefined);
+    setSiteId(scope.siteId);
+    setAreaId(scope.areaId ?? '');
+    setLineId(scope.lineId ?? '');
+  };
+
+  const [meters, setMeters] = useState<EnergyMeterItem[]>([]);
+  const [level, setLevel] = useState<HierarchyLevel>('site');
   const [timePreset, setTimePreset] = useState(0);
   const [series, setSeries] = useState<Array<{ time: string; value: number; [k: string]: unknown }>>([]);
   const [comparisonSeries, setComparisonSeries] = useState<Record<string, Array<{ time: string; value: number }>>>({});
@@ -72,17 +83,17 @@ export default function EnergyPage() {
     .filter((m) => !siteId || m.tag.endpoint.site.id === siteId)
     .reduce((acc, m) => {
       const a = m.tag.endpoint.area;
-      if (a && !acc.some((x) => x.id === a.id)) acc.push({ id: a.id, name: a.name, siteId: m.tag.endpoint.site.id });
+      if (a && !acc.some((x: { id: string }) => x.id === a.id)) acc.push({ id: a.id, name: a.name, siteId: m.tag.endpoint.site.id });
       return acc;
-    }, [] as Area[]);
+    }, [] as { id: string; name: string; siteId: string }[]);
 
   const lines = meters
     .filter((m) => (!areaId || m.tag.endpoint.area?.id === areaId) && (!siteId || m.tag.endpoint.site.id === siteId))
     .reduce((acc, m) => {
       const l = m.tag.endpoint.line;
-      if (l && !acc.some((x) => x.id === l.id)) acc.push({ id: l.id, name: l.name, areaId: m.tag.endpoint.area?.id ?? '' });
+      if (l && !acc.some((x: { id: string }) => x.id === l.id)) acc.push({ id: l.id, name: l.name, areaId: m.tag.endpoint.area?.id ?? '' });
       return acc;
-    }, [] as LineEntity[]);
+    }, [] as { id: string; name: string; areaId: string }[]);
 
   const fetchConsumption = async (params: { start: string; end: string; siteId?: string; areaId?: string; lineId?: string }) => {
     const sp = new URLSearchParams({
@@ -226,44 +237,14 @@ export default function EnergyPage() {
               <option value="area">Section (area)</option>
               <option value="line">Line</option>
             </select>
-            {level === 'area' && (
-              <>
-                <select
-                  value={areaId}
-                  onChange={(e) => { setAreaId(e.target.value); setLineId(''); }}
-                  className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="">Select area</option>
-                  {areas.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-              </>
-            )}
-            {level === 'line' && (
-              <>
-                <select
-                  value={areaId}
-                  onChange={(e) => { setAreaId(e.target.value); setLineId(''); }}
-                  className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="">Select area</option>
-                  {areas.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-                <select
-                  value={lineId}
-                  onChange={(e) => setLineId(e.target.value)}
-                  className="border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="">Select line</option>
-                  {lines.map((l) => (
-                    <option key={l.id} value={l.id}>{l.name}</option>
-                  ))}
-                </select>
-              </>
-            )}
+            <HierarchyScopeSelector
+              siteId={siteId}
+              areaId={areaId || null}
+              lineId={lineId || null}
+              onScopeChange={handleScopeChange}
+              showEquipment={false}
+              className="flex-wrap"
+            />
           </div>
           <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200">
             {TIME_PRESETS.map((p, i) => (

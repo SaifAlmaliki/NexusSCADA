@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Calendar, Download, RefreshCw, Settings2, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { HierarchyScopeSelector } from '@/components/HierarchyScopeSelector';
 
 // Mock data generator
 const generateTrendData = (points: number) => {
@@ -36,6 +37,15 @@ const mockData = generateTrendData(60); // Last 5 hours
 export default function TrendsPage() {
   const [timeRange, setTimeRange] = useState('1h');
   const [selectedTags, setSelectedTags] = useState(['temp', 'pressure']);
+  const [siteId, setSiteId] = useState<string | null>(null);
+  const [areaId, setAreaId] = useState<string | null>(null);
+  const [lineId, setLineId] = useState<string | null>(null);
+
+  const handleScopeChange = (scope: { siteId: string | null; areaId: string | null; lineId: string | null }) => {
+    setSiteId(scope.siteId);
+    setAreaId(scope.areaId);
+    setLineId(scope.lineId);
+  };
 
   const toggleTag = (tag: string) => {
     if (selectedTags.includes(tag)) {
@@ -63,6 +73,13 @@ export default function TrendsPage() {
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 border-b border-slate-100">
           <div className="flex flex-wrap items-center gap-2">
+            <HierarchyScopeSelector
+              siteId={siteId}
+              areaId={areaId}
+              lineId={lineId}
+              onScopeChange={handleScopeChange}
+              showEquipment={false}
+            />
             <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
               {['15m', '1h', '8h', '24h', '7d'].map((range) => (
                 <button

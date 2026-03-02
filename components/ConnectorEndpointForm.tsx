@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
+import { HierarchyScopeSelector } from '@/components/HierarchyScopeSelector';
 
 type Site = { id: string; name: string };
 
@@ -28,9 +29,6 @@ export function ConnectorEndpointForm({
   onCancel: () => void;
 }) {
   const [sites, setSites] = useState<Site[]>([]);
-  const [areas, setAreas] = useState<Array<{ id: string; name: string }>>([]);
-  const [lines, setLines] = useState<Array<{ id: string; name: string }>>([]);
-  const [equipment, setEquipment] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -55,33 +53,6 @@ export function ConnectorEndpointForm({
       .then((data) => setSites(data))
       .catch(console.error);
   }, []);
-
-  useEffect(() => {
-    if (formData.siteId) {
-      fetch(`/api/sites/${formData.siteId}/areas`)
-        .then((r) => r.json())
-        .catch(() => [])
-        .then(setAreas);
-    } else setAreas([]);
-  }, [formData.siteId]);
-
-  useEffect(() => {
-    if (formData.areaId) {
-      fetch(`/api/areas/${formData.areaId}/lines`)
-        .then((r) => r.json())
-        .catch(() => [])
-        .then(setLines);
-    } else setLines([]);
-  }, [formData.areaId]);
-
-  useEffect(() => {
-    if (formData.lineId) {
-      fetch(`/api/lines/${formData.lineId}/equipment`)
-        .then((r) => r.json())
-        .catch(() => [])
-        .then(setEquipment);
-    } else setEquipment([]);
-  }, [formData.lineId]);
 
   useEffect(() => {
     if (endpoint) {
@@ -208,56 +179,24 @@ export function ConnectorEndpointForm({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Site</label>
-              <select
-                value={formData.siteId}
-                onChange={(e) => setFormData({ ...formData, siteId: e.target.value, areaId: '', lineId: '', equipmentId: '' })}
-                className="w-full border border-slate-300 rounded-lg p-2"
-              >
-                <option value="">Select site</option>
-                {sites.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Area (optional)</label>
-              <select
-                value={formData.areaId}
-                onChange={(e) => setFormData({ ...formData, areaId: e.target.value, lineId: '', equipmentId: '' })}
-                className="w-full border border-slate-300 rounded-lg p-2"
-              >
-                <option value="">—</option>
-                {areas.map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Line (optional)</label>
-              <select
-                value={formData.lineId}
-                onChange={(e) => setFormData({ ...formData, lineId: e.target.value, equipmentId: '' })}
-                className="w-full border border-slate-300 rounded-lg p-2"
-              >
-                <option value="">—</option>
-                {lines.map((l) => (
-                  <option key={l.id} value={l.id}>{l.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Equipment (optional)</label>
-              <select
-                value={formData.equipmentId}
-                onChange={(e) => setFormData({ ...formData, equipmentId: e.target.value })}
-                className="w-full border border-slate-300 rounded-lg p-2"
-              >
-                <option value="">—</option>
-                {equipment.map((eq) => (
-                  <option key={eq.id} value={eq.id}>{eq.name}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Hierarchy (Site → Area → Line → Equipment)</label>
+              <HierarchyScopeSelector
+                siteId={formData.siteId || null}
+                areaId={formData.areaId || null}
+                lineId={formData.lineId || null}
+                equipmentId={formData.equipmentId || null}
+                onScopeChange={(scope) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    siteId: scope.siteId || '',
+                    areaId: scope.areaId || '',
+                    lineId: scope.lineId || '',
+                    equipmentId: scope.equipmentId || '',
+                  }))
+                }
+                showEquipment={true}
+                className="flex flex-col gap-2"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Polling Interval (ms)</label>
