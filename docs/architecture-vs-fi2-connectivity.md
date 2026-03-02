@@ -79,7 +79,7 @@ So: **same shape**. One edge per site; each edge publishes to the **central** MQ
 
 ## 5. Summary: how close we are
 
-- **Architecture:** Very close. Same layers: plant → connector (edge) → MQTT → telemetry processor → time-series DB; config API + asset registry → UI.
+- **Architecture:** Very close. Same layers: plant → connector (edge) → MQTT → telemetry processor → time-series DB; config API + asset registry → UI. **Option A only:** connector-only at the edge, no local MQTT broker; all implementation follows this.
 - **Cloud-agnostic:** Yes. No IoT Hub or IoT Edge; **self-hosted MQTT (MonsterMQ)** and optional InfluxDB/Postgres on your own infra.
 - **Implemented today:**
   - Self-hosted MQTT broker (MonsterMQ)

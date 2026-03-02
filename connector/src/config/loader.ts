@@ -1,6 +1,7 @@
 /**
  * Config loader for the industrial connector.
  * Fetches configuration from the API or uses simulation defaults.
+ * Architecture: Option A — connector-only at the edge; MQTT_URL must point to the central broker (no local MQTT at the edge).
  */
 
 export interface ConnectorTagConfig {
