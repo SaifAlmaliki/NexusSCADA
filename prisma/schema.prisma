@@ -151,10 +151,28 @@ model ConnectorTag {
   dataType   String?           // REAL, INT, BOOL, etc.
   writable   Boolean           @default(false)
   unit       String?           // e.g., "°C", "bar", "%"
+  energyMeter EnergyMeter?
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
   @@unique([endpointId, sourceId])
+}
+
+// --- Energy Management ---
+
+enum MeterType {
+  KWH
+  KW
+  POWER_FACTOR
+}
+
+model EnergyMeter {
+  id        String    @id @default(uuid())
+  tagId     String    @unique
+  tag       ConnectorTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  meterType MeterType
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 // --- Protocol Bridge Configuration ---

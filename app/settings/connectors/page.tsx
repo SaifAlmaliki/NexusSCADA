@@ -6,6 +6,7 @@ import { ConnectorEndpointForm } from '@/components/ConnectorEndpointForm';
 import { ConnectorTagTable } from '@/components/ConnectorTagTable';
 import { DiscoveryModal } from '@/components/DiscoveryModal';
 import { BridgeConfigForm } from '@/components/BridgeConfigForm';
+import { EnergyMeterConfig } from '@/components/EnergyMeterConfig';
 import { Plug, Plus, Search, Server, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,7 +36,7 @@ type Endpoint = {
 export default function ConnectorsSettingsPage() {
   const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
   const [selectedEndpoint, setSelectedEndpoint] = useState<Endpoint | null>(null);
-  const [activeTab, setActiveTab] = useState<'endpoints' | 'tags' | 'bridges' | 'discovery'>('endpoints');
+  const [activeTab, setActiveTab] = useState<'endpoints' | 'tags' | 'bridges' | 'energy'>('endpoints');
   const [showEndpointForm, setShowEndpointForm] = useState(false);
   const [editingEndpoint, setEditingEndpoint] = useState<Endpoint | null>(null);
   const [showDiscovery, setShowDiscovery] = useState(false);
@@ -145,7 +146,7 @@ export default function ConnectorsSettingsPage() {
 
         <div className="flex-1 space-y-6">
           <div className="flex gap-2 border-b border-slate-200">
-            {(['endpoints', 'tags', 'bridges'] as const).map((tab) => (
+            {(['endpoints', 'tags', 'bridges', 'energy'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -156,7 +157,7 @@ export default function ConnectorsSettingsPage() {
                     : 'border-transparent text-slate-500 hover:text-slate-700'
                 )}
               >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === 'energy' ? 'Energy meters' : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
           </div>
@@ -214,6 +215,10 @@ export default function ConnectorsSettingsPage() {
 
           {activeTab === 'bridges' && (
             <BridgeConfigForm />
+          )}
+
+          {activeTab === 'energy' && (
+            <EnergyMeterConfig />
           )}
         </div>
       </div>

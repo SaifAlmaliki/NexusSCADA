@@ -10,6 +10,7 @@ declare module "next-auth" {
     user: User & {
       id: string;
       role: string;
+      siteId?: string;
     };
   }
 }

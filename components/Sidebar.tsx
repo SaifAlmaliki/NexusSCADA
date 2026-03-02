@@ -16,7 +16,8 @@ import {
   Smartphone,
   ChevronDown,
   ChevronRight,
-  Menu
+  Menu,
+  Zap
 } from 'lucide-react';
 import { useState } from 'react';
 import { clsx, type ClassValue } from 'clsx';
@@ -48,6 +49,7 @@ const navConfig = [
       { name: 'Trends', href: '/scada/trends' },
     ]
   },
+  { name: 'Energy', href: '/energy', icon: Zap },
   { 
     name: 'Maintenance', 
     icon: Wrench,
