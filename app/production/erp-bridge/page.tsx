@@ -5,42 +5,59 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/Card';
 import { RefreshCw, CalendarClock, AlertTriangle, CheckCircle2, Search, ArrowRight, BrainCircuit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Mock data for initial render
-const mockSyncLogs = [
-  { id: '1', syncType: 'ORDER_IMPORT', status: 'SUCCESS', recordsProcessed: 12, createdAt: new Date(Date.now() - 3600000).toISOString() },
-  { id: '2', syncType: 'STATUS_UPDATE', status: 'SUCCESS', recordsProcessed: 45, createdAt: new Date(Date.now() - 7200000).toISOString() },
-  { id: '3', syncType: 'ORDER_IMPORT', status: 'FAILED', errorMessage: 'Connection timeout', recordsProcessed: 0, createdAt: new Date(Date.now() - 86400000).toISOString() },
-];
+type SyncLog = {
+  id: string;
+  syncType: string;
+  status: string;
+  recordsProcessed: number;
+  errorMessage?: string | null;
+  createdAt: string;
+};
 
-const mockVariances = [
-  { id: 'v1', orderNumber: 'WO-2026-041', product: 'Industrial Lubricant XL', plannedStart: '08:00 AM', actualStart: '09:15 AM', variance: '+75 min', status: 'DELAYED' },
-  { id: 'v2', orderNumber: 'WO-2026-042', product: 'Coolant Premium', plannedStart: '10:00 AM', actualStart: '10:05 AM', variance: '+5 min', status: 'ON_TRACK' },
-  { id: 'v3', orderNumber: 'WO-2026-043', product: 'Hydraulic Fluid', plannedStart: '01:00 PM', actualStart: 'Pending', variance: 'N/A', status: 'PENDING' },
-];
+type VarianceRow = {
+  id: string;
+  orderNumber: string;
+  product: string;
+  recipeName?: string | null;
+  plannedStart: string | null;
+  actualStart: string | null;
+  variance: string;
+  status: 'DELAYED' | 'ON_TRACK' | 'PENDING';
+};
 
 export default function ErpBridgePage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAdjusting, setIsAdjusting] = useState(false);
-  const [syncLogs, setSyncLogs] = useState(mockSyncLogs);
-  const [variances, setVariances] = useState(mockVariances);
+  const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
+  const [variances, setVariances] = useState<VarianceRow[]>([]);
   const [analyzingBatch, setAnalyzingBatch] = useState<string | null>(null);
   const [rootCauses, setRootCauses] = useState<Record<string, string>>({});
+
+  const loadBridgeData = async () => {
+    try {
+      const res = await fetch('/api/erp/bridge');
+      if (res.ok) {
+        const data = await res.json();
+        setSyncLogs(data.syncLogs || []);
+        setVariances(data.variances || []);
+      }
+    } catch (error) {
+      console.error('Failed to load ERP bridge data', error);
+    }
+  };
+
+  useEffect(() => {
+    loadBridgeData();
+  }, []);
 
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const newLog = {
-        id: Date.now().toString(),
-        syncType: 'ORDER_IMPORT',
-        status: 'SUCCESS',
-        recordsProcessed: Math.floor(Math.random() * 20) + 1,
-        createdAt: new Date().toISOString()
-      };
-      
-      setSyncLogs([newLog, ...syncLogs].slice(0, 5));
+      const res = await fetch('/api/erp/sync', { method: 'POST' });
+      if (!res.ok) {
+        console.error('Sync failed');
+      }
+      await loadBridgeData();
     } catch (error) {
       console.error('Sync failed', error);
     } finally {
@@ -134,7 +151,10 @@ export default function ErpBridgePage() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">Connected to SAP S/4HANA</h3>
-                  <p className="text-sm text-slate-500">Last sync: {new Date(syncLogs[0].createdAt).toLocaleTimeString()}</p>
+                  <p className="text-sm text-slate-500">
+                    Last sync:{' '}
+                    {syncLogs[0] ? new Date(syncLogs[0].createdAt).toLocaleTimeString() : '—'}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -152,7 +172,11 @@ export default function ErpBridgePage() {
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           "w-2 h-2 rounded-full",
-                          log.status === 'SUCCESS' ? "bg-emerald-500" : "bg-red-500"
+                          log.status === 'SUCCESS'
+                            ? "bg-emerald-500"
+                            : log.status === 'PARTIAL'
+                            ? "bg-amber-500"
+                            : "bg-red-500"
                         )} />
                         <span className="text-sm font-bold text-slate-700">{log.syncType}</span>
                       </div>
@@ -201,11 +225,29 @@ export default function ErpBridgePage() {
                     {variances.map((v) => (
                       <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3">
-                          <div className="font-medium text-slate-900">{v.orderNumber}</div>
+                          <div className="font-medium text-slate-900">
+                            <a
+                              href={`/orders/${v.id}`}
+                              className="text-indigo-600 hover:underline"
+                            >
+                              {v.orderNumber}
+                            </a>
+                          </div>
                           <div className="text-xs text-slate-500">{v.product}</div>
+                          {v.recipeName && (
+                            <div className="text-[11px] text-slate-400 mt-0.5">
+                              Recipe: {v.recipeName}
+                            </div>
+                          )}
                         </td>
-                        <td className="px-4 py-3 text-slate-600">{v.plannedStart}</td>
-                        <td className="px-4 py-3 text-slate-900 font-medium">{v.actualStart}</td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {v.plannedStart
+                            ? new Date(v.plannedStart).toLocaleTimeString()
+                            : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-slate-900 font-medium">
+                          {v.actualStart ? new Date(v.actualStart).toLocaleTimeString() : 'Pending'}
+                        </td>
                         <td className="px-4 py-3">
                           <span className={cn(
                             "px-2 py-1 rounded text-xs font-medium",

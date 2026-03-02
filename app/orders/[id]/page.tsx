@@ -14,6 +14,9 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [dispatching, setDispatching] = useState(false);
+  const [batchPlan, setBatchPlan] = useState<{ quantity: number }[]>([]);
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrder();
@@ -34,18 +37,58 @@ export default function OrderDetailsPage() {
     }
   };
 
+  const openDispatchModal = () => {
+    if (!order) return;
+    const defaultSize = order.recipe?.defaultBatchSize || order.targetQty;
+    const fullBatches = Math.floor(order.targetQty / defaultSize);
+    const remainder = order.targetQty % defaultSize;
+    const plan: { quantity: number }[] = [];
+    for (let i = 0; i < fullBatches; i += 1) {
+      plan.push({ quantity: defaultSize });
+    }
+    if (remainder > 0) {
+      plan.push({ quantity: remainder });
+    }
+    if (!plan.length) {
+      plan.push({ quantity: order.targetQty });
+    }
+    setBatchPlan(plan);
+    setPlanError(null);
+    setShowDispatchModal(true);
+  };
+
+  const totalPlannedQty = batchPlan.reduce((sum, b) => sum + (b.quantity || 0), 0);
+
   const handleDispatch = async () => {
+    if (!order) return;
+
+    if (!batchPlan.length || totalPlannedQty <= 0) {
+      setPlanError('Please define at least one batch with quantity');
+      return;
+    }
+
+    if (totalPlannedQty > order.targetQty) {
+      setPlanError('Total planned quantity exceeds order target quantity');
+      return;
+    }
+
     setDispatching(true);
     try {
-      const res = await fetch(`/api/orders/${id}/dispatch`, { method: 'POST' });
+      const res = await fetch(`/api/orders/${id}/dispatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batches: batchPlan }),
+      });
       if (res.ok) {
-        alert('Order dispatched and batch created successfully');
-        fetchOrder();
+        setShowDispatchModal(false);
+        await fetchOrder();
       } else {
-        alert('Failed to dispatch order');
+        const errorBody = await res.json().catch(() => null);
+        setPlanError(errorBody?.error || 'Failed to dispatch order');
       }
     } catch (error) {
       console.error(error);
+      setPlanError('Failed to dispatch order');
     } finally {
       setDispatching(false);
     }
@@ -66,7 +109,7 @@ export default function OrderDetailsPage() {
         </div>
         <div className="flex gap-3">
           <button 
-            onClick={handleDispatch}
+            onClick={openDispatchModal}
             disabled={dispatching || order.status === 'COMPLETED'}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors disabled:opacity-50"
           >
@@ -119,9 +162,98 @@ export default function OrderDetailsPage() {
                 <p className="text-xs text-slate-500 mb-1">Line</p>
                 <p className="text-sm font-medium text-slate-900">{order.line.name}</p>
               </div>
+              {order.recipe && (
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Recipe</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {order.recipe.name} ({order.recipe.productType})
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
+
+        {showDispatchModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
+              <div className="flex justify-between items-center p-4 border-b border-slate-100">
+                <h2 className="text-lg font-bold text-slate-900">Plan Batches</h2>
+                <button
+                  onClick={() => setShowDispatchModal(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="p-4 space-y-4">
+                <p className="text-sm text-slate-600">
+                  Target quantity: <span className="font-semibold">{order.targetQty}</span> units. Planned
+                  total: <span className="font-semibold">{totalPlannedQty}</span> units.
+                </p>
+                {planError && (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded px-3 py-2">
+                    {planError}
+                  </p>
+                )}
+                <div className="space-y-2">
+                  {batchPlan.map((batch, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2"
+                    >
+                      <span className="text-xs text-slate-500">Batch {index + 1}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        className="w-24 border border-slate-300 rounded-lg px-2 py-1 text-sm"
+                        value={batch.quantity}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value || '0', 10);
+                          setBatchPlan((prev) =>
+                            prev.map((b, i) => (i === index ? { ...b, quantity: value } : b)),
+                          );
+                        }}
+                      />
+                      <span className="text-xs text-slate-500">units</span>
+                      <button
+                        className="ml-auto text-xs text-slate-400 hover:text-red-600"
+                        onClick={() =>
+                          setBatchPlan((prev) => prev.filter((_, i) => i !== index))
+                        }
+                        disabled={batchPlan.length === 1}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    className="mt-2 text-xs text-indigo-600 hover:underline"
+                    onClick={() => setBatchPlan((prev) => [...prev, { quantity: 1 }])}
+                  >
+                    + Add batch
+                  </button>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 p-4 border-t border-slate-100">
+                <button
+                  onClick={() => setShowDispatchModal(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-medium"
+                  disabled={dispatching}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDispatch}
+                  disabled={dispatching}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {dispatching ? 'Dispatching...' : 'Dispatch Batches'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="lg:col-span-2 space-y-6">
           <Card>

@@ -1,5 +1,106 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { fetchErpOrders, pushStatusesToErp } from '@/lib/erp/mockErpClient';
+
+export async function POST() {
+  try {
+    const erpOrders = await fetchErpOrders();
+
+    let importedCount = 0;
+
+    for (const erp of erpOrders) {
+      await prisma.workOrder.upsert({
+        where: {
+          erpOrderId: erp.erpOrderId,
+        },
+        update: {
+          orderNumber: erp.orderNumber,
+          product: erp.product,
+          targetQty: erp.targetQty,
+          plannedStartDate: erp.plannedStartDate ? new Date(erp.plannedStartDate) : undefined,
+          plannedEndDate: erp.plannedEndDate ? new Date(erp.plannedEndDate) : undefined,
+        },
+        create: {
+          erpOrderId: erp.erpOrderId,
+          orderNumber: erp.orderNumber,
+          product: erp.product,
+          targetQty: erp.targetQty,
+          line: {
+            connectOrCreate: {
+              where: { id: 'default-line' },
+              create: {
+                id: 'default-line',
+                name: 'Line 1',
+                area: {
+                  connectOrCreate: {
+                    where: { id: 'default-area' },
+                    create: {
+                      id: 'default-area',
+                      name: 'Area 1',
+                      site: {
+                        connectOrCreate: {
+                          where: { id: 'default-site' },
+                          create: {
+                            id: 'default-site',
+                            name: 'Main Plant',
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          plannedStartDate: erp.plannedStartDate ? new Date(erp.plannedStartDate) : undefined,
+          plannedEndDate: erp.plannedEndDate ? new Date(erp.plannedEndDate) : undefined,
+        },
+      });
+
+      importedCount += 1;
+    }
+
+    await prisma.erpSyncLog.create({
+      data: {
+        syncType: 'ORDER_IMPORT',
+        status: 'SUCCESS',
+        recordsProcessed: importedCount,
+      },
+    });
+
+    const mesOrders = await prisma.workOrder.findMany({
+      include: { batches: true },
+    });
+
+    await pushStatusesToErp();
+
+    await prisma.erpSyncLog.create({
+      data: {
+        syncType: 'STATUS_UPDATE',
+        status: 'SUCCESS',
+        recordsProcessed: mesOrders.length,
+      },
+    });
+
+    return NextResponse.json({ importedCount, statusUpdates: mesOrders.length });
+  } catch (error: any) {
+    console.error('ERP sync failed', error);
+
+    await prisma.erpSyncLog.create({
+      data: {
+        syncType: 'ORDER_IMPORT',
+        status: 'FAILED',
+        recordsProcessed: 0,
+        errorMessage: error.message,
+      },
+    });
+
+    return NextResponse.json({ error: 'ERP sync failed' }, { status: 500 });
+  }
+}
+
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export async function POST() {
   try {

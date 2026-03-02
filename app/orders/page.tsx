@@ -9,7 +9,8 @@ export default async function OrdersPage() {
   const orders = await prisma.workOrder.findMany({
     include: {
       line: true,
-      batches: true
+      batches: true,
+      recipe: true,
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -37,6 +38,7 @@ export default async function OrdersPage() {
                 <tr>
                   <th className="px-4 py-3 font-medium">Order Number</th>
                   <th className="px-4 py-3 font-medium">Product</th>
+                  <th className="px-4 py-3 font-medium">Recipe</th>
                   <th className="px-4 py-3 font-medium">Line</th>
                   <th className="px-4 py-3 font-medium">Target Qty</th>
                   <th className="px-4 py-3 font-medium">Status</th>
@@ -49,6 +51,9 @@ export default async function OrdersPage() {
                   <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-4 py-3 font-medium text-slate-900">{order.orderNumber}</td>
                     <td className="px-4 py-3 text-slate-600">{order.product}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {order.recipe ? `${order.recipe.name}` : '-'}
+                    </td>
                     <td className="px-4 py-3 text-slate-600">{order.line.name}</td>
                     <td className="px-4 py-3 text-slate-900 font-medium">{order.targetQty}</td>
                     <td className="px-4 py-3">

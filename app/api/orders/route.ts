@@ -6,7 +6,8 @@ export async function GET() {
     const orders = await prisma.workOrder.findMany({
       include: {
         line: true,
-        batches: true
+        batches: true,
+        recipe: true,
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -34,9 +35,15 @@ export async function POST(req: Request) {
         product: data.product,
         targetQty: data.targetQty,
         lineId: line.id,
+        recipeId: data.recipeId || undefined,
         plannedStartDate: data.plannedStartDate ? new Date(data.plannedStartDate) : undefined,
         plannedEndDate: data.plannedEndDate ? new Date(data.plannedEndDate) : undefined,
-      }
+      },
+      include: {
+        line: true,
+        batches: true,
+        recipe: true,
+      },
     });
     
     return NextResponse.json(order);
