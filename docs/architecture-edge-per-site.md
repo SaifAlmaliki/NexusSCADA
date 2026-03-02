@@ -17,4 +17,4 @@
 - Site B: devices → Edge B → central MQTT (platform)
 - Platform: central MQTT → Telegraf → InfluxDB; Config API ← Postgres; edges pull config (optionally by `siteId`).
 
-For full mapping to FI2-style architecture, see [architecture-vs-fi2-connectivity.md](architecture-vs-fi2-connectivity.md).
+For the edge-as-bridge model (upstream/downstream channels, heartbeat, config push), see [architecture-edge-bridge.md](architecture-edge-bridge.md). For full mapping to FI2-style architecture, see [architecture-vs-fi2-connectivity.md](architecture-vs-fi2-connectivity.md).

@@ -41,6 +41,21 @@ const CONFIG_API_URL = process.env.CONFIG_API_URL || 'http://localhost:3000';
 const CONFIG_POLL_INTERVAL_MS = parseInt(process.env.CONFIG_POLL_INTERVAL_MS || '60000', 10);
 
 /**
+ * Get the site id this edge serves (ISA-95 scope). Used for heartbeat topic and downstream subscription.
+ * EDGE_SITE_ID takes precedence over EDGE_SITE_IDS; if neither is set, returns null (no bridge heartbeat/downstream).
+ */
+export function getEdgeSiteId(): string | null {
+  const siteId = process.env.EDGE_SITE_ID?.trim();
+  if (siteId) return siteId;
+  const siteIds = process.env.EDGE_SITE_IDS?.trim();
+  if (siteIds) {
+    const ids = siteIds.split(',').map((s) => s.trim()).filter(Boolean);
+    return ids.length > 0 ? ids[0]! : null;
+  }
+  return null;
+}
+
+/**
  * Build config API URL with optional site scope (edge-per-site).
  * EDGE_SITE_ID takes precedence over EDGE_SITE_IDS if both are set.
  */

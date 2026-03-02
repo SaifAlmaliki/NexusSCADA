@@ -1,16 +1,5 @@
 import { NextResponse } from 'next/server';
-import mqtt from 'mqtt';
-
-const MQTT_URL = process.env.MQTT_URL || 'mqtt://localhost:1883';
-
-let mqttClient: mqtt.MqttClient | null = null;
-
-function getMqttClient() {
-  if (!mqttClient || !mqttClient.connected) {
-    mqttClient = mqtt.connect(MQTT_URL);
-  }
-  return mqttClient;
-}
+import { getMqttClient } from '@/lib/mqtt-platform';
 
 /**
  * Publish a write command to MQTT for the connector to execute.
