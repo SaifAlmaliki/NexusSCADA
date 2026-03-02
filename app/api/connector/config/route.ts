@@ -1,59 +1,28 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { parseSiteFilter, getConnectorConfig } from '@/lib/connector-config';
 
 /**
- * Returns full connector configuration for the connector service.
+ * Returns connector configuration for the connector service.
  * Used at startup and for hot-reload. Format optimized for connector consumption.
+ *
+ * Optional query params (edge-per-site):
+ * - siteId: single site UUID; return only endpoints for this site.
+ * - siteIds: comma-separated site UUIDs; return only endpoints for these sites.
+ * If omitted, returns all enabled endpoints.
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const endpoints = await prisma.connectorEndpoint.findMany({
-      where: { enabled: true },
-      include: {
-        site: true,
-        area: true,
-        line: true,
-        equipment: true,
-        tags: true,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
+    const url = req.url ? new URL(req.url) : null;
+    const searchParams = url?.searchParams ?? new URLSearchParams();
+    const { siteIds } = parseSiteFilter(searchParams);
 
-    const config = endpoints.map((ep) => {
-      const siteName = ep.site?.name ?? 'plant';
-      const areaName = ep.area?.name ?? 'default';
-      const lineName = ep.line?.name ?? 'default';
-      const equipmentName = ep.equipment?.name ?? ep.name;
+    const where = {
+      enabled: true,
+      ...(siteIds && siteIds.length > 0 && { siteId: { in: siteIds } }),
+    };
 
-      return {
-        id: ep.id,
-        name: ep.name,
-        protocol: ep.protocol,
-        config: ep.config as Record<string, unknown>,
-        pollingInterval: ep.pollingInterval,
-        hierarchy: {
-          siteId: ep.siteId,
-          siteName,
-          areaId: ep.areaId,
-          areaName,
-          lineId: ep.lineId,
-          lineName,
-          equipmentId: ep.equipmentId,
-          equipmentName,
-        },
-        tags: ep.tags.map((t) => ({
-          id: t.id,
-          sourceId: t.sourceId,
-          mqttTopic: t.mqttTopic,
-          name: t.name,
-          dataType: t.dataType,
-          writable: t.writable,
-          unit: t.unit,
-        })),
-      };
-    });
-
-    return NextResponse.json({ endpoints: config });
+    const config = await getConnectorConfig(where);
+    return NextResponse.json(config);
   } catch (error) {
     console.error('Error fetching connector config:', error);
     return NextResponse.json({ error: 'Failed to fetch config' }, { status: 500 });

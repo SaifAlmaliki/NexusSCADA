@@ -40,6 +40,26 @@ const CONFIG_API_URL = process.env.CONFIG_API_URL || 'http://localhost:3000';
 const CONFIG_POLL_INTERVAL_MS = parseInt(process.env.CONFIG_POLL_INTERVAL_MS || '60000', 10);
 
 /**
+ * Build config API URL with optional site scope (edge-per-site).
+ * EDGE_SITE_ID takes precedence over EDGE_SITE_IDS if both are set.
+ */
+export function getConfigUrl(): string {
+  const base = `${CONFIG_API_URL}/api/connector/config`;
+  const siteId = process.env.EDGE_SITE_ID?.trim();
+  const siteIds = process.env.EDGE_SITE_IDS?.trim();
+  if (siteId) {
+    return `${base}?siteId=${encodeURIComponent(siteId)}`;
+  }
+  if (siteIds) {
+    const ids = siteIds.split(',').map((s) => s.trim()).filter(Boolean);
+    if (ids.length > 0) {
+      return `${base}?siteIds=${ids.map((id) => encodeURIComponent(id)).join(',')}`;
+    }
+  }
+  return base;
+}
+
+/**
  * Resolve MQTT topic from template.
  * Template vars: {site}, {area}, {line}, {equipment}, {tag}
  */
@@ -59,9 +79,10 @@ export function resolveTopic(
 
 /**
  * Fetch config from API.
+ * Uses getConfigUrl() so edge can pass EDGE_SITE_ID or EDGE_SITE_IDS for site-scoped config.
  */
 export async function fetchConfig(): Promise<ConnectorConfig> {
-  const url = `${CONFIG_API_URL}/api/connector/config`;
+  const url = getConfigUrl();
   const res = await fetch(url);
 
   if (!res.ok) {

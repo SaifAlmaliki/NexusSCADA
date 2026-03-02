@@ -1,5 +1,8 @@
 version: '3.8'
 
+# Central UNS (platform): MQTT broker, API, Telegraf, InfluxDB, UI.
+# Run one connector per site elsewhere; point each connector's MQTT_URL and CONFIG_API_URL at this platform.
+
 services:
   # 1. Unified Namespace MQTT Broker (MonsterMQ)
   # Acts as the central nervous system for OT-IT data exchange
@@ -123,8 +126,8 @@ services:
       - uns-network
     restart: unless-stopped
 
-  # 6. Industrial Edge Connector
-  # Polls OPC UA, Modbus, and S7 PLCs and publishes to MQTT
+  # 6. Industrial Edge Connector (Option A: connector-only, no local MQTT at edge)
+  # One connector per site; connects to local PLCs/meters and publishes to central MQTT. No local broker. For edge-per-site, run connector per site with MQTT_URL and CONFIG_API_URL pointing at the platform; optional EDGE_SITE_ID.
   connector:
     build:
       context: ./connector
